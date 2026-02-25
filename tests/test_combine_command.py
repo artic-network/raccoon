@@ -185,9 +185,9 @@ def test_combine_multiple_metadata_files(tmp_path):
     assert result == 0
 
     lines = out.read_text().strip().splitlines()
-    assert lines[0] == ">seq1|UK|2024-01-01"
+    assert lines[0] == ">seq1|uk|2024-01-01"
     assert lines[1] == "ACGT"
-    assert lines[2] == ">seq2|US|2024-02-02"
+    assert lines[2] == ">seq2|us|2024-02-02"
     assert lines[3] == "GGGG"
 
 
