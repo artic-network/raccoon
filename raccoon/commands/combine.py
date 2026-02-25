@@ -54,7 +54,8 @@ def format_header(
         if value is None:
             return ""
         cleaned = str(value).strip()
-        return "_".join(cleaned.split())
+        lowered = cleaned.lower()
+        return "_".join(lowered.split())
 
     location = _sanitize(get_field(row, location_field))
     date = _sanitize(get_field(row, date_field))
