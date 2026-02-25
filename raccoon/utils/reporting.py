@@ -309,11 +309,17 @@ def generate_combine_report(
                 hovertemplate="Date: %{x}<br>Location: %{y}<br>ID: %{customdata}<extra></extra>",
             )
         ])
+        # Ensure all unique locations are shown as y-axis ticks
+        unique_locations = sorted(df["location"].unique())
+        # Dynamically set plot height based on number of locations (min 400px)
+        plot_height = max(400, 30 * len(unique_locations))
         fig.update_layout(
             title="Sampling dates by location",
             xaxis_title="Date",
             yaxis_title="Location",
+            height=plot_height,
         )
+        fig.update_yaxes(categoryorder="array", categoryarray=unique_locations)
         _apply_plot_style(fig)
         dataset_plot_html = _plot_div(fig)
 
