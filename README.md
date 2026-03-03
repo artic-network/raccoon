@@ -105,6 +105,48 @@ raccoon seq-qc a.fasta b.fasta -o combined.fasta \
   --header-separator '|'
 ```
 
+With custom header template:
+
+```bash
+# Custom field order and custom fields
+raccoon seq-qc a.fasta b.fasta -o combined.fasta \
+  --metadata metadata.csv --header-fields "{id}|{country}|{date}"
+
+# Multiple location levels
+raccoon seq-qc a.fasta b.fasta -o combined.fasta \
+  --metadata metadata.csv --header-fields "{id}|{region}|{country}|{date}"
+
+# Custom separator
+raccoon seq-qc a.fasta b.fasta -o combined.fasta \
+  --metadata metadata.csv --header-fields "{id}_{location}_{date}"
+```
+
+**Header field details:**
+
+- `--header-fields` uses a template format: `{field1}|{field2}|{field3}` where field names come from your metadata CSV columns
+- Field values are automatically **sanitized**: converted to lowercase and spaces/special characters replaced with underscores
+- When `--header-fields` is provided, it **takes precedence** over `--metadata-location-field` and `--metadata-date-field` arguments
+- Missing fields in metadata are output as empty values (e.g., `seq1||2024-01-01` if location is missing), allowing the pipeline to continue with issues logged to `seq_qc_metadata_issues.csv`
+- The special field `{id}` always maps to the parsed sequence ID (after `--id-field` extraction)
+
+**Backward compatibility:**
+- Default behavior (no `--header-fields`) still works: `{id}|{location}|{date}` format
+- Existing `--metadata-location-field` and `--metadata-date-field` args are respected when `--header-fields` is not provided
+
+Key sequence QC options:
+
+- `--metadata`: metadata CSV file(s) for header harmonization
+- `--metadata-id-field`: CSV column to match with sequence IDs (default: id)
+- `--header-fields`: template for custom header format (e.g., `{id}|{country}|{date}`)
+- `--metadata-location-field`: CSV column for location (default: location; overridden by `--header-fields`)
+- `--metadata-date-field`: CSV column for date (default: date; overridden by `--header-fields`)
+- `--header-separator`: separator between header fields (default: |; ignored if `--header-fields` is used)
+- `--id-delimiter`: delimiter for parsing IDs from input headers (default: |)
+- `--id-field`: 0-based field index for ID extraction (default: 0)
+- `--min-length`: minimum sequence length to keep
+- `--max-n-content`: maximum N content proportion to keep (e.g., 0.1 for 10%)
+
+
 Phylogenetic QC:
 
 ```bash

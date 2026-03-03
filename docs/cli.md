@@ -147,7 +147,7 @@ Basic usage:
 raccoon seq-qc a.fasta b.fasta -o combined.fasta
 ```
 
-Header harmonisation using metadata:
+Header harmonisation using metadata (backward compatible format):
 
 ```bash
 raccoon seq-qc a.fasta b.fasta -o combined.fasta \
@@ -158,15 +158,53 @@ raccoon seq-qc a.fasta b.fasta -o combined.fasta \
   --header-separator '|'
 ```
 
+Header harmonisation with custom template:
+
+```bash
+# Custom field order and custom fields from metadata
+raccoon seq-qc a.fasta b.fasta -o combined.fasta \
+  --metadata metadata.csv \
+  --header-fields "{id}|{country}|{date}"
+
+# Multiple location levels
+raccoon seq-qc a.fasta b.fasta -o combined.fasta \
+  --metadata metadata.csv \
+  --header-fields "{id}|{region}|{country}|{date}"
+
+# Different separator
+raccoon seq-qc a.fasta b.fasta -o combined.fasta \
+  --metadata metadata.csv \
+  --header-fields "{id}:{location}:{date}"
+```
+
 Key options
 
 - `inputs` (positional): one or more input FASTA files
 - `-o, --output`: output FASTA file (use `-` for stdout)
 - `--metadata`: one or more metadata CSVs used to harmonise headers
-- `--metadata-delimiter`: metadata delimiter (default: `,`)
+- `--metadata-delimiter`: metadata delimiter (default: `,`; auto-detects `.tsv` files)
 - `--metadata-id-field`: metadata id column (default: `id`)
-- `--metadata-location-field`: metadata location column (default: `location`)
-- `--metadata-date-field`: metadata date column (default: `date`)
-- `--header-separator`: header separator (default: `|`)
+- `--header-fields`: template for custom header format (e.g. `{id}|{country}|{date}`); **takes precedence** over `--metadata-location-field` and `--metadata-date-field` if provided
+- `--metadata-location-field`: metadata location column (default: `location`; ignored if `--header-fields` is used)
+- `--metadata-date-field`: metadata date column (default: `date`; ignored if `--header-fields` is used)
+- `--header-separator`: deprecated; use `--header-fields` instead for custom separators (default: `|`)
+- `--id-delimiter`: delimiter for parsing sequence IDs from input headers (default: `|`)
+- `--id-field`: 0-based field index for ID extraction (default: `0`)
 - `--min-length`: minimum sequence length to keep
 - `--max-n-content`: maximum N content proportion to keep (e.g. `0.1`)
+
+Header field format and sanitization
+
+- `--header-fields` uses template syntax: `{field1}{sep}{field2}{sep}{field3}` where field names match your metadata CSV columns
+- Field values are **automatically sanitized**: converted to lowercase and spaces/special characters replaced with underscores
+  - Example: `"United Kingdom"` → `"united_kingdom"`, `"2024-01-01"` → `"2024-01-01"`
+- Missing metadata columns are output as empty values (e.g. `seq1||2024-01-01` if location is missing), keeping consistent numbers of fields in each header
+- The special field `{id}` always refers to the parsed sequence ID (after `--id-field` extraction), not the metadata id column
+- When `--header-fields` is provided, `--metadata-location-field` and `--metadata-date-field` are ignored
+
+Output files
+
+When filtering or using metadata:
+- `seq_qc_filter_failures.csv`: sequences filtered by `--min-length` or `--max-n-content`
+- `seq_qc_metadata_issues.csv`: missing metadata rows or missing field values
+- `seq-qc_report.html`: summary report (if metadata provided)
