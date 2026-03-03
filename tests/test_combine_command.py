@@ -235,7 +235,7 @@ def test_combine_id_field_out_of_range_keeps_full_id(tmp_path):
     result = combine.main(args)
     assert result == 0
     text = out.read_text()
-    assert text.startswith(">sample1|Loc1|2024-01-01")
+    assert text.startswith(">sample1|loc1|2024-01-01")
 
 
 def _read_csv_rows(path: Path):
