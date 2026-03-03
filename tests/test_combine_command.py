@@ -654,7 +654,7 @@ def test_header_fields_takes_precedence_over_location_date_args(tmp_path):
 
 def test_header_fields_with_nonexistent_metadata_field(tmp_path):
     """Test header-fields template referencing a field that doesn't exist in metadata.
-    Should gracefully handle missing field (empty value)."""
+    Should exit with an error and informative message."""
     fasta_path = tmp_path / "a.fasta"
     _write_fasta(fasta_path, [("seq1", "acgt")])
 
@@ -678,13 +678,8 @@ def test_header_fields_with_nonexistent_metadata_field(tmp_path):
     )
 
     result = combine.main(args)
-    assert result == 0
-
-    lines = out.read_text().strip().splitlines()
-    # date field is empty
-    assert lines[0] == ">seq1|uk|"
-
-
+    # Should exit with error because 'date' field doesn't exist in metadata
+    assert result == 1
 def test_header_fields_invalid_template_syntax(tmp_path):
     """Test that invalid template syntax is caught."""
     fasta_path = tmp_path / "a.fasta"
@@ -908,3 +903,189 @@ def test_metadata_args_present_but_empty_list(tmp_path):
 
     lines = out.read_text().strip().splitlines()
     assert lines[0] == ">seq1"
+
+
+def test_date_harmonization_with_header_fields(tmp_path):
+    """Test that dates are harmonized to ISO format when using header-fields template."""
+    fasta_path = tmp_path / "a.fasta"
+    _write_fasta(fasta_path, [("seq1", "acgt"), ("seq2", "gggg")])
+
+    metadata_path = tmp_path / "meta.csv"
+    metadata_path.write_text(
+        textwrap.dedent(
+            """\
+            id,location,sample_date
+            seq1,UK,15/01/2024
+            seq2,US,"January 20, 2024"
+            """
+        )
+    )
+
+    out = tmp_path / "combined.fasta"
+    args = MockArgs(
+        inputs=[str(fasta_path)],
+        output=str(out),
+        metadata=[str(metadata_path)],
+        # Template with custom date field name - final field should be treated as date
+        header_fields="{id}|{location}|{sample_date}",
+    )
+
+    result = combine.main(args)
+    assert result == 0
+
+    lines = out.read_text().strip().splitlines()
+    # Dates should be harmonized to ISO YYYY-MM-DD format, then sanitized (lowercase)
+    # 15/01/2024 -> 2024-01-15, January 20, 2024 -> 2024-01-20
+    assert lines[0] == ">seq1|uk|2024-01-15"
+    assert lines[2] == ">seq2|us|2024-01-20"
+
+
+def test_date_harmonization_default_date_field(tmp_path):
+    """Test that dates are harmonized using the default 'date' field when --header-fields is not used."""
+    fasta_path = tmp_path / "a.fasta"
+    _write_fasta(fasta_path, [("seq1", "acgt")])
+
+    metadata_path = tmp_path / "meta.csv"
+    metadata_path.write_text(
+        textwrap.dedent(
+            """\
+            id,location,date
+            seq1,UK,2024/01/15
+            """
+        )
+    )
+
+    out = tmp_path / "combined.fasta"
+    args = MockArgs(
+        inputs=[str(fasta_path)],
+        output=str(out),
+        metadata=[str(metadata_path)],
+        # No header_fields template - use defaults
+    )
+
+    result = combine.main(args)
+    assert result == 0
+
+    lines = out.read_text().strip().splitlines()
+    # 2024/01/15 should be harmonized to 2024-01-15
+    assert lines[0] == ">seq1|uk|2024-01-15"
+
+
+def test_csv_unescaped_delimiters_error(tmp_path):
+    """Test that unescaped delimiters in metadata produce informative error."""
+    fasta_path = tmp_path / "a.fasta"
+    _write_fasta(fasta_path, [("seq1", "acgt")])
+
+    metadata_path = tmp_path / "meta.csv"
+    # This CSV has an unescaped comma in the location field
+    # It will be interpreted as 4 columns instead of 3
+    metadata_path.write_text(
+        textwrap.dedent(
+            """\
+            id,location,date
+            seq1,New York, USA,2024-01-15
+            """
+        )
+    )
+
+    out = tmp_path / "combined.fasta"
+    args = MockArgs(
+        inputs=[str(fasta_path)],
+        output=str(out),
+        metadata=[str(metadata_path)],
+    )
+
+    result = combine.main(args)
+    # Should exit with error due to inconsistent field count
+    assert result == 1
+
+
+def test_csv_properly_quoted_delimiters(tmp_path):
+    """Test that properly quoted fields with delimiters work correctly."""
+    fasta_path = tmp_path / "a.fasta"
+    _write_fasta(fasta_path, [("seq1", "acgt")])
+
+    metadata_path = tmp_path / "meta.csv"
+    # Proper CSV with quoted fields containing delimiters
+    metadata_path.write_text(
+        textwrap.dedent(
+            """\
+            id,location,date
+            seq1,"New York, USA",2024-01-15
+            """
+        )
+    )
+
+    out = tmp_path / "combined.fasta"
+    args = MockArgs(
+        inputs=[str(fasta_path)],
+        output=str(out),
+        metadata=[str(metadata_path)],
+    )
+
+    result = combine.main(args)
+    assert result == 0
+
+    lines = out.read_text().strip().splitlines()
+    # "New York, USA" -> "new_york_usa" (spaces and special chars to underscores)
+    assert lines[0] == ">seq1|new_york_usa|2024-01-15"
+
+
+def test_sanitization_preserves_hyphens(tmp_path):
+    """Test that hyphens in metadata are preserved during sanitization."""
+    fasta_path = tmp_path / "a.fasta"
+    _write_fasta(fasta_path, [("seq1", "acgt")])
+
+    metadata_path = tmp_path / "meta.csv"
+    metadata_path.write_text(
+        textwrap.dedent(
+            """\
+            id,location,date
+            seq1,New-York,2024-01-15
+            """
+        )
+    )
+
+    out = tmp_path / "combined.fasta"
+    args = MockArgs(
+        inputs=[str(fasta_path)],
+        output=str(out),
+        metadata=[str(metadata_path)],
+    )
+
+    result = combine.main(args)
+    assert result == 0
+
+    lines = out.read_text().strip().splitlines()
+    # Hyphens should be preserved, not converted to underscores
+    assert lines[0] == ">seq1|new-york|2024-01-15"
+
+
+def test_sanitization_special_chars_to_underscores(tmp_path):
+    """Test that special characters (commas, colons, etc.) are converted to underscores."""
+    fasta_path = tmp_path / "a.fasta"
+    _write_fasta(fasta_path, [("seq1", "acgt")])
+
+    metadata_path = tmp_path / "meta.csv"
+    metadata_path.write_text(
+        textwrap.dedent(
+            """\
+            id,location,date
+            seq1,"New York; USA: Region (Northeast)",2024-01-15
+            """
+        )
+    )
+
+    out = tmp_path / "combined.fasta"
+    args = MockArgs(
+        inputs=[str(fasta_path)],
+        output=str(out),
+        metadata=[str(metadata_path)],
+    )
+
+    result = combine.main(args)
+    assert result == 0
+
+    lines = out.read_text().strip().splitlines()
+    # Special chars should be converted to underscores, but hyphens in dates preserved
+    assert lines[0] == ">seq1|new_york_usa_region_northeast|2024-01-15"

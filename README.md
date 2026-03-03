@@ -124,10 +124,18 @@ raccoon seq-qc a.fasta b.fasta -o combined.fasta \
 **Header field details:**
 
 - `--header-fields` uses a template format: `{field1}|{field2}|{field3}` where field names come from your metadata CSV columns
-- Field values are automatically **sanitized**: converted to lowercase and spaces/special characters replaced with underscores
+- Field values are automatically **sanitized** for safe use in phylogenetic tools (Newick parsers):
+  - Converted to **lowercase**
+  - Spaces, commas, colons, semi-colons, and parentheses are replaced with underscores
+  - Hyphens and pipes are preserved (safe for Newick parsers)
+  - ISO dates (YYYY-MM-DD) are not further sanitized
+  - Multiple consecutive underscores are collapsed to single underscores
+  - Example: `"New York, USA"` → `"new_york_usa"`, `"January 15, 2024"` → `"2024-01-15"`
 - When `--header-fields` is provided, it **takes precedence** over `--metadata-location-field` and `--metadata-date-field` arguments
 - Missing fields in metadata are output as empty values (e.g., `seq1||2024-01-01` if location is missing), allowing the pipeline to continue with issues logged to `seq_qc_metadata_issues.csv`
 - The special field `{id}` always maps to the parsed sequence ID (after `--id-field` extraction)
+- **CSV parsing note**: Metadata fields containing delimiters (commas) must be properly quoted. If unescaped delimiters are detected, raccoon will exit with an informative error suggesting field quoting (e.g., `"New York, USA"` instead of `New York, USA`)
+
 
 **Backward compatibility:**
 - Default behavior (no `--header-fields`) still works: `{id}|{location}|{date}` format

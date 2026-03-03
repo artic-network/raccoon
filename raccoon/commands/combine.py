@@ -5,9 +5,11 @@ import logging
 import os
 import re
 import sys
+from datetime import datetime
 from typing import Dict, Iterable, List, Optional, Tuple
 
 from Bio import SeqIO
+
 
 
 def parse_header_template(template: str) -> Tuple[str, List[str]]:
@@ -44,14 +46,27 @@ def format_header_from_template(
         field_values: Dictionary mapping field names to their values
         
     Returns:
-        Formatted header string
+        Formatted header string with sanitized values
+        (special characters replaced with underscores, except for ISO dates)
     """
     def _sanitize(value: str) -> str:
         if value is None or value == "":
             return ""
         cleaned = str(value).strip()
         lowered = cleaned.lower()
-        return "_".join(lowered.split())
+        
+        # Skip sanitization for ISO dates (YYYY-MM-DD format)
+        if re.match(r'^\d{4}-\d{2}-\d{2}$', lowered):
+            return lowered
+        
+        # Replace specific characters that break Newick parsers: spaces, commas, colons, semi-colons, parentheses
+        # Preserve hyphens as they are safe
+        sanitized = re.sub(r'[ ,;:\(\)]', '_', lowered)
+        # Replace multiple consecutive underscores with single underscore
+        sanitized = re.sub(r'_+', '_', sanitized)
+        # Remove leading/trailing underscores
+        sanitized = sanitized.strip('_')
+        return sanitized
     
     # Create sanitized field values
     sanitized = {k: _sanitize(v) for k, v in field_values.items()}
@@ -64,6 +79,146 @@ def format_header_from_template(
 
 
 
+def harmonize_date(date_str: str) -> Tuple[Optional[str], Optional[str]]:
+    """Harmonize a date string to ISO YYYY-MM-DD format.
+    
+    Args:
+        date_str: date string to harmonize
+        
+    Returns:
+        Tuple of (harmonized_date, issue_description or None)
+        - If successful: (ISO_date_string, None)
+        - If parsing failed: (None, error_message)
+        - If ambiguous: (best_guess_date, "ambiguous: ...")
+    """
+    if not date_str or not isinstance(date_str, str):
+        return None, None
+    
+    date_str = date_str.strip()
+    if not date_str:
+        return None, None
+    
+    # Already in ISO format?
+    iso_pattern = r'^\d{4}-\d{2}-\d{2}$'
+    if re.match(iso_pattern, date_str):
+        try:
+            datetime.strptime(date_str, '%Y-%m-%d')
+            return date_str, None
+        except ValueError:
+            return None, f"invalid ISO date: {date_str}"
+    
+    # Try common formats
+    common_formats = [
+        '%Y/%m/%d',      # 2024/01/15
+        '%d/%m/%Y',      # 15/01/2024
+        '%m/%d/%Y',      # 01/15/2024
+        '%Y-%m-%d',      # Already handled above, but keep for completeness
+        '%d-%m-%Y',      # 15-01-2024
+        '%m-%d-%Y',      # 01-15-2024
+        '%Y.%m.%d',      # 2024.01.15
+        '%d.%m.%Y',      # 15.01.2024
+        '%B %d, %Y',     # January 15, 2024
+        '%b %d, %Y',     # Jan 15, 2024
+        '%d %B %Y',      # 15 January 2024
+        '%d %b %Y',      # 15 Jan 2024
+        '%Y%m%d',        # 20240115
+    ]
+    
+    for fmt in common_formats:
+        try:
+            parsed = datetime.strptime(date_str, fmt)
+            return parsed.strftime('%Y-%m-%d'), None
+        except ValueError:
+            continue
+    
+    # Couldn't parse with unambiguous formats, try ambiguous ones
+    # Check for patterns like DD/MM or MM/DD where both are valid
+    parts = re.split(r'[-/\.]', date_str)
+    
+    if len(parts) == 3:
+        # Try to infer: if any part > 12, we know its position
+        try:
+            nums = [int(p) for p in parts]
+        except ValueError:
+            return None, f"failed to parse: {date_str}"
+        
+        # Pattern: num/num/YYYY
+        if len(parts[2]) == 4:  # Last part is year
+            year = nums[2]
+            first, second = nums[0], nums[1]
+            
+            # If first or second > 12, we know it's the day
+            if 12 < first <= 31:
+                # first is day, second is month
+                try:
+                    parsed = datetime(year, second, first)
+                    return parsed.strftime('%Y-%m-%d'), None
+                except ValueError:
+                    return None, f"invalid date values: {date_str}"
+            elif 12 < second <= 31:
+                # second is day, first is month
+                try:
+                    parsed = datetime(year, first, second)
+                    return parsed.strftime('%Y-%m-%d'), None
+                except ValueError:
+                    return None, f"invalid date values: {date_str}"
+            else:
+                # Both <= 12, ambiguous - assume first is month, second is day
+                try:
+                    parsed = datetime(year, first, second)
+                    return parsed.strftime('%Y-%m-%d'), f"ambiguous: interpreted {date_str} as {year}-{first:02d}-{second:02d}"
+                except ValueError:
+                    return None, f"invalid date values: {date_str}"
+        
+        # Pattern: YYYY/num/num (assume month/day)
+        elif len(parts[0]) == 4:  # First part is year
+            year = nums[0]
+            month, day = nums[1], nums[2]
+            try:
+                parsed = datetime(year, month, day)
+                return parsed.strftime('%Y-%m-%d'), None
+            except ValueError:
+                return None, f"invalid date values: {date_str}"
+    
+    return None, f"failed to parse: {date_str}"
+
+
+def detect_date_field(
+    header_fields_template: Optional[str],
+    metadata_date_field_arg: Optional[str],
+    template_field_names: List[str],
+    metadata_columns: Optional[List[str]] = None,
+) -> Optional[str]:
+    """Detect which field is the date field.
+    
+    Priority:
+    1. If --metadata-date-field was explicitly provided and not the default, use that
+    2. If --header-fields provided, assume the final field is the date field
+    3. Check if that field exists in metadata columns
+    
+    Args:
+        header_fields_template: The --header-fields argument (or None)
+        metadata_date_field_arg: The --metadata-date-field argument
+        template_field_names: Parsed field names from header_fields_template
+        metadata_columns: Available columns in metadata (for validation)
+        
+    Returns:
+        The name of the date field to use, or None if no date field
+    """
+    # If header_fields_template is provided, assume the last field is the date
+    if header_fields_template is not None and template_field_names:
+        last_field = template_field_names[-1]
+        # Validate the field exists in metadata if columns provided
+        if metadata_columns is not None and last_field not in metadata_columns:
+            return None  # Field doesn't exist, will be caught in validation
+        return last_field
+    
+    # Otherwise, use the provided metadata_date_field
+    return metadata_date_field_arg
+
+
+
+
 def get_field(row: Dict[str, str], field: str) -> str:
     """Get a field from a CSV row, handling BOM markers."""
     if field in row:
@@ -72,16 +227,39 @@ def get_field(row: Dict[str, str], field: str) -> str:
     return row.get(bom_field, "") or ""
 
 
-def load_metadata_map(metadata_path: str, id_field: str, delimiter: str) -> Dict[str, Dict[str, str]]:
+def load_metadata_map(metadata_path: str, id_field: str, delimiter: str) -> Optional[Tuple[Dict[str, Dict[str, str]], Optional[str]]]:
+    """Load metadata from CSV file.
+    
+    Returns:
+        Tuple of (metadata_dict, error_message)
+        - If successful: (metadata_dict, None)
+        - If parse error with unescaped delimiters: (None, error_message)
+    """
     metadata = {}
+    
     with open(metadata_path, "r", newline="") as handle:
         reader = csv.DictReader(handle, delimiter=delimiter)
-        for row in reader:
+        fieldnames = reader.fieldnames
+        expected_field_count = len(fieldnames) if fieldnames else 0
+        
+        for row_num, row in enumerate(reader, start=2):  # Start at 2 (after header)
+            # Check if row has more fields than expected
+            # This happens when there are unescaped delimiters in the data
+            actual_field_count = len(row)
+            if actual_field_count > expected_field_count:
+                return None, (
+                    f"Row {row_num} has {actual_field_count} fields but header has {expected_field_count}. "
+                    f"This may indicate unescaped delimiters in the metadata. "
+                    f"Please quote fields containing '{delimiter}' characters."
+                )
+            
             key = get_field(row, id_field)
             if not key:
                 continue
             metadata[key] = row
-    return metadata
+    
+    return metadata, None
+
 
 
 def _infer_delimiter(path: str, default: str) -> str:
@@ -91,12 +269,22 @@ def _infer_delimiter(path: str, default: str) -> str:
     return default
 
 
-def load_metadata_maps(metadata_paths: Iterable[str], id_field: str, delimiter: str) -> Dict[str, Dict[str, str]]:
+def load_metadata_maps(metadata_paths: Iterable[str], id_field: str, delimiter: str) -> Tuple[Optional[Dict[str, Dict[str, str]]], Optional[str]]:
+    """Load metadata from multiple CSV files.
+    
+    Returns:
+        Tuple of (metadata_dict, error_message)
+        - If successful: (metadata_dict, None)
+        - If error: (None, error_message)
+    """
     merged = {}
     for path in metadata_paths:
         effective_delimiter = _infer_delimiter(path, delimiter)
-        merged.update(load_metadata_map(path, id_field, effective_delimiter))
-    return merged
+        meta_map, error = load_metadata_map(path, id_field, effective_delimiter)
+        if error:
+            return None, f"Error in {path}: {error}"
+        merged.update(meta_map)
+    return merged, None
 
 
 def format_header(
@@ -188,7 +376,40 @@ def main(args):
             for path in metadata_paths:
                 if not io.validate_input_file(path, "Metadata file"):
                     return 1
-            metadata_map = load_metadata_maps(metadata_paths, metadata_id_field, metadata_delimiter)
+            metadata_map, metadata_error = load_metadata_maps(metadata_paths, metadata_id_field, metadata_delimiter)
+            if metadata_error:
+                logging.error("Failed to load metadata: %s", metadata_error)
+                return 1
+            
+            # Get available metadata columns from the first row (for validation)
+            metadata_columns = None
+            if metadata_map:
+                first_row = next(iter(metadata_map.values()))
+                metadata_columns = list(first_row.keys())
+                
+                # If header_fields template is provided, validate all fields exist in metadata
+                if header_fields_template is not None and getattr(args, "header_fields", None) is not None:
+                    for field_name in template_field_names:
+                        if field_name != "id" and field_name not in metadata_columns:
+                            # Check for BOM-prefixed field name
+                            bom_field = f"\ufeff{field_name}"
+                            if bom_field not in metadata_columns:
+                                logging.error(
+                                    "Field '%s' in header template not found in metadata columns: %s",
+                                    field_name,
+                                    ", ".join(metadata_columns)
+                                )
+                                return 1
+            
+            # Detect the date field
+            detected_date_field = detect_date_field(
+                getattr(args, "header_fields", None),
+                metadata_date_field,
+                template_field_names,
+                metadata_columns,
+            )
+        else:
+            detected_date_field = None
 
         output_path = args.output or "combined.fasta"
         if output_path == "-":
@@ -279,15 +500,16 @@ def main(args):
                             for field_name in template_field_names:
                                 if field_name == "id":
                                     continue  # Already added
-                                # Try to map template field names to metadata columns
-                                # For backward compatibility, check if it's "location" or "date"
-                                if field_name == "location":
-                                    field_values[field_name] = get_field(row, metadata_location_field)
-                                elif field_name == "date":
-                                    field_values[field_name] = get_field(row, metadata_date_field)
+                                
+                                # Get the raw value from metadata
+                                raw_value = get_field(row, field_name)
+                                
+                                # If this is the date field, try to harmonize it first (before sanitization)
+                                if detected_date_field and field_name == detected_date_field:
+                                    harmonized, _ = harmonize_date(raw_value)
+                                    field_values[field_name] = harmonized or raw_value
                                 else:
-                                    # Direct field lookup for custom fields
-                                    field_values[field_name] = get_field(row, field_name)
+                                    field_values[field_name] = raw_value
                             
                             try:
                                 header = format_header_from_template(header_fields_template, field_values)
