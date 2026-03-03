@@ -25,6 +25,7 @@ def build_parser():
     c.add_argument('--metadata-location-field', default='location', help='Metadata location column (default: location)')
     c.add_argument('--metadata-date-field', default='date', help='Metadata date column (default: date)')
     c.add_argument('--header-separator', default='|', help='Header separator (default: |)')
+    c.add_argument('--header-fields', default=None, help='Header template (e.g. "{id}|{location}|{date}"); overrides metadata field args if provided')
     c.add_argument('--id-delimiter', default='|', help='Delimiter for parsing IDs from input headers (default: |)')
     c.add_argument('--id-field', type=int, default=0, help='0-based field index for ID parsing (default: 0)')
     c.add_argument('--min-length', type=int, default=None, help='Minimum sequence length to keep')

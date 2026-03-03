@@ -3,13 +3,69 @@
 import csv
 import logging
 import os
+import re
 import sys
-from typing import Dict, Iterable, Optional
+from typing import Dict, Iterable, List, Optional, Tuple
 
 from Bio import SeqIO
 
 
+def parse_header_template(template: str) -> Tuple[str, List[str]]:
+    """Parse a header template like '{id}|{location}|{date}' into separator and field names.
+    
+    Args:
+        template: Header template string with placeholders like {fieldname}
+        
+    Returns:
+        Tuple of (separator, field_names_list)
+        e.g. ("|", ["id", "location", "date"])
+    """
+    # Find all {field} placeholders
+    field_pattern = r'\{(\w+)\}'
+    fields = re.findall(field_pattern, template)
+    
+    if not fields:
+        raise ValueError(f"Header template must contain at least one field placeholder like {{id}}: {template}")
+    
+    # Determine separator by removing field placeholders
+    separator = re.sub(field_pattern, '', template)
+    
+    return separator, fields
+
+
+def format_header_from_template(
+    template: str,
+    field_values: Dict[str, str],
+) -> str:
+    """Format a header using a template string and field values.
+    
+    Args:
+        template: Header template like '{id}|{location}|{date}'
+        field_values: Dictionary mapping field names to their values
+        
+    Returns:
+        Formatted header string
+    """
+    def _sanitize(value: str) -> str:
+        if value is None or value == "":
+            return ""
+        cleaned = str(value).strip()
+        lowered = cleaned.lower()
+        return "_".join(lowered.split())
+    
+    # Create sanitized field values
+    sanitized = {k: _sanitize(v) for k, v in field_values.items()}
+    
+    # Format using template
+    try:
+        return template.format(**sanitized)
+    except KeyError as e:
+        raise ValueError(f"Missing field {e} in template data")
+
+
+
 def get_field(row: Dict[str, str], field: str) -> str:
+    """Get a field from a CSV row, handling BOM markers."""
     if field in row:
         return row.get(field, "") or ""
     bom_field = f"\ufeff{field}"
@@ -109,10 +165,24 @@ def main(args):
         metadata_date_field = getattr(args, "metadata_date_field", "date")
         metadata_delimiter = getattr(args, "metadata_delimiter", ",")
         header_separator = getattr(args, "header_separator", "|")
+        header_fields_template = getattr(args, "header_fields", None)
         id_delimiter = getattr(args, "id_delimiter", "|")
         id_field = getattr(args, "id_field", 0)
         min_length = getattr(args, "min_length", None)
         max_n_content = getattr(args, "max_n_content", None)
+
+        # Determine header template and field names
+        if header_fields_template is None:
+            # Backward compatibility: construct template from existing parameters
+            header_fields_template = f"{{id}}{header_separator}{{location}}{header_separator}{{date}}"
+            template_field_names = ["id", "location", "date"]
+        else:
+            # Parse user-provided template
+            try:
+                _, template_field_names = parse_header_template(header_fields_template)
+            except ValueError as e:
+                logging.error("Invalid header template: %s", str(e))
+                return 1
 
         if metadata_paths:
             for path in metadata_paths:
@@ -204,13 +274,26 @@ def main(args):
                     if metadata_map is not None:
                         row = metadata_map.get(parsed_id)
                         if row:
-                            header = format_header(
-                                parsed_id,
-                                row,
-                                metadata_location_field,
-                                metadata_date_field,
-                                header_separator,
-                            )
+                            # Build field values dictionary for template formatting
+                            field_values = {"id": parsed_id}
+                            for field_name in template_field_names:
+                                if field_name == "id":
+                                    continue  # Already added
+                                # Try to map template field names to metadata columns
+                                # For backward compatibility, check if it's "location" or "date"
+                                if field_name == "location":
+                                    field_values[field_name] = get_field(row, metadata_location_field)
+                                elif field_name == "date":
+                                    field_values[field_name] = get_field(row, metadata_date_field)
+                                else:
+                                    # Direct field lookup for custom fields
+                                    field_values[field_name] = get_field(row, field_name)
+                            
+                            try:
+                                header = format_header_from_template(header_fields_template, field_values)
+                            except ValueError as e:
+                                logging.error("Failed to format header for %s: %s", parsed_id, str(e))
+                                continue
                     write_fasta_record(out_handle, header, seq)
                     kept_count += 1
         finally:
