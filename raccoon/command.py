@@ -29,7 +29,7 @@ def build_parser():
     c.add_argument('--max-n-content', type=float, default=None, help='Maximum N content proportion to keep (e.g. 0.1)')
     c.add_argument('--header-fields', default=rc.DEFAULT_HEADER_FIELDS, help=f'Template for constructing harmonised sequence header (e.g. "{rc.DEFAULT_HEADER_FIELDS}")')
     c.add_argument('--header-separator', default=rc.DEFAULT_HEADER_SEPARATOR, help=f'Header separator (default: {rc.DEFAULT_HEADER_SEPARATOR})')
-    c.add_argument('-o', '--output', default='combined.fasta', help='Output FASTA file (use - for stdout)')
+    c.add_argument('-o', '--output', default=rc.DEFAULT_OUTPUT_FILE, help='Output FASTA file (use - for stdout)')
     c.set_defaults(func=combine_cmd.main)
 
     a = sub.add_parser('aln-qc', help='alignment QC')
