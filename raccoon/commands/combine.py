@@ -40,6 +40,7 @@ def parse_header_template(template: str) -> Tuple[str, List[str]]:
 
 def format_header_from_template(
     template: str,
+    metadata_id_field: str,
     field_values: Dict[str, str],
 ) -> str:
     """Format a header using a template string and field values.
@@ -72,7 +73,7 @@ def format_header_from_template(
         return sanitized
     
     # Create sanitized field values
-    sanitized = {k: _sanitize(v) for k, v in field_values.items()}
+    sanitized = {k: _sanitize(v) if k != metadata_id_field else v for k, v in field_values.items()}
     
     # Format using template
     try:
@@ -192,11 +193,11 @@ def detect_date_field(
     template_field_names: List[str],
     metadata_columns: Optional[List[str]] = None,
 ) -> Optional[str]:
-    """Detect which field is the date field.
+    """Try to detect which field is the date field.
     
     Priority:
-    1. If --metadata-date-field was explicitly provided and not the default, use that
-    2. If --header-fields provided, assume the final field is the date field
+    1. If --metadata-date-field was explicitly provided and is not the default value, use that (as long as it exists in metadata columns if provided)
+    2. If --header-fields provided as a template, assume the final field is the date field
     3. Check if that field exists in metadata columns
     
     Args:
@@ -216,6 +217,9 @@ def detect_date_field(
             return None  # Field doesn't exist, will be caught in validation
         return last_field
     
+    # Otherwise, if metadata_date_field_arg is provided use that (if it exists in metadata columns)
+    if metadata_date_field_arg not in metadata_columns:
+        return None  # Field doesn't exist, will be caught in validation
     # Otherwise, use the provided metadata_date_field
     return metadata_date_field_arg
 
@@ -267,8 +271,8 @@ def load_metadata_map(metadata_path: str, id_field: str, delimiter: str) -> Opti
 
 def _infer_delimiter(path: str, default: str) -> str:
     lowered = path.lower()
-    if lowered.endswith(".tsv") or lowered.endswith(".tab"):
-        return "\t"
+    if lowered.endswith(".tsv"):
+        return "\t" #so it's not auto detecting from content, just file path
     return default
 
 
@@ -321,15 +325,15 @@ def n_content(seq: str) -> float:
     return seq.count("N") / len(seq)
 
 
-def parse_record_id(record_id: str, delimiter: str, field_index: int) -> str:
-    if field_index < 0:
-        return record_id
-    parts = record_id.split(delimiter) if delimiter else [record_id]
+def parse_record_id(record_id: str, seq_id_delimiter: str, seq_id_field_index: int) -> str:
+    
+    parts = record_id.split(seq_id_delimiter) if seq_id_delimiter else [record_id]
     if not parts:
         return record_id
-    if field_index >= len(parts):
+    if seq_id_field_index >= len(parts):
         return record_id
-    return parts[field_index] or record_id
+
+    return parts[seq_id_field_index]
 
 
 def main(args):
@@ -391,7 +395,7 @@ def main(args):
                 # If header_fields template is provided, validate all fields exist in metadata
                 if header_fields_template is not None and getattr(args, "header_fields", None) is not None:
                     for field_name in template_field_names:
-                        if field_name != "id" and field_name not in metadata_columns:
+                        if field_name != metadata_id_field and field_name not in metadata_columns:
                             # Check for BOM-prefixed field name
                             bom_field = f"\ufeff{field_name}"
                             if bom_field not in metadata_columns:
@@ -410,7 +414,7 @@ def main(args):
         else:
             detected_date_field = None
 
-        output_path = args.output or "combined.fasta"
+        output_path = args.output or rc.DEFAULT_OUTPUT_FILE
         if output_path == "-":
             out_handle = sys.stdout
             close_handle = False
@@ -426,11 +430,11 @@ def main(args):
         metadata_issues = []
         try:
             for path in input_fastas:
-                for rec in SeqIO.parse(path, "fasta"):
-                    seq = str(rec.seq)
+                for record in SeqIO.parse(path, "fasta"):
+                    seq = str(record.seq)
                     seq_len = len(seq)
                     n_prop = n_content(seq)
-                    parsed_id = parse_record_id(rec.id, id_delimiter, id_field)
+                    parsed_id = parse_record_id(record.id, seq_id_delimiter, seq_id_field_index)
                     metadata_row = None
                     location_value = ""
                     date_value = ""
@@ -452,7 +456,7 @@ def main(args):
                             if not location_value:
                                 metadata_issues.append({
                                     "file": os.path.basename(path),
-                                    "id": rec.id,
+                                    metadata_id_field: record.id,
                                     "parsed_id": parsed_id,
                                     "status": status,
                                     "issue": "missing location",
@@ -462,7 +466,7 @@ def main(args):
                             if not date_value:
                                 metadata_issues.append({
                                     "file": os.path.basename(path),
-                                    "id": rec.id,
+                                    metadata_id_field: record.id,
                                     "parsed_id": parsed_id,
                                     "status": status,
                                     "issue": "missing date",
@@ -472,7 +476,7 @@ def main(args):
                         else:
                             metadata_issues.append({
                                 "file": os.path.basename(path),
-                                "id": rec.id,
+                                metadata_id_field: record.id,
                                 "parsed_id": parsed_id,
                                 "status": status,
                                 "issue": "missing metadata row",
@@ -482,22 +486,22 @@ def main(args):
                     if reasons:
                         filter_failures.append({
                             "file": os.path.basename(path),
-                            "id": rec.id,
+                            metadata_id_field: record.id,
                             "parsed_id": parsed_id,
                             "length": seq_len,
-                            "n_content": round(n_prop, 6),
+                            "n_content": round(n_prop, 4),
                             "reason": "; ".join(reasons),
                         })
                         filtered_count += 1
                         continue
-                    header = rec.id
+                    header = record.id
                     if metadata_map is not None:
                         row = metadata_map.get(parsed_id)
                         if row:
                             # Build field values dictionary for template formatting
-                            field_values = {"id": parsed_id}
+                            field_values = {metadata_id_field: parsed_id}
                             for field_name in template_field_names:
-                                if field_name == "id":
+                                if field_name == metadata_id_field:
                                     continue  # Already added
                                 
                                 # Get the raw value from metadata
@@ -511,7 +515,7 @@ def main(args):
                                     field_values[field_name] = raw_value
                             
                             try:
-                                header = format_header_from_template(header_fields_template, field_values)
+                                header = format_header_from_template(header_fields_template,metadata_id_field, field_values)
                             except ValueError as e:
                                 logging.error(f"Failed to format header for {parsed_id}: {str(e)}")
                                 continue
@@ -539,7 +543,7 @@ def main(args):
             with open(metadata_csv, "w", newline="") as handle:
                 writer = csv.DictWriter(
                     handle,
-                    fieldnames=["file", "id", "parsed_id", "status", "issue", "location", "date"],
+                    fieldnames=["file", metadata_id_field, "parsed_id", "status", "issue", "location", "date"],
                     lineterminator="\n",
                 )
                 writer.writeheader()
