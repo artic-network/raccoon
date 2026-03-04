@@ -137,7 +137,7 @@ def cleanup_temp_file(temp_path: Optional[str]) -> None:
         if os.path.exists(temp_path):
             os.unlink(temp_path)
     except Exception:
-        logging.debug("Failed to remove temp file %s", temp_path)
+        logging.debug(f"Failed to remove temp file {temp_path}")
 
 
 def resolve_existing_file(filepath: str, outdir: Optional[str], name: str) -> Optional[str]:
@@ -146,7 +146,7 @@ def resolve_existing_file(filepath: str, outdir: Optional[str], name: str) -> Op
     Returns the resolved path if readable, otherwise None.
     """
     if not filepath:
-        logging.error("%s is required", name)
+        logging.error(f"{name} is required")
         return None
 
     if validate_input_file(filepath, name):

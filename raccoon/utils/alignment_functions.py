@@ -65,7 +65,7 @@ def find_frame_breaking_indels(aln, genbank_path, reference_id=None):
         if gb is None:
             raise FileNotFoundError(f"Reference {reference_id} not found in GenBank file")
     except Exception as exc:
-        logging.error("Error reading genbank file: %s", exc)
+        logging.error(f"Error reading genbank file: {exc}")
         raise
 
     # build mapping from reference ungapped index -> alignment column index
@@ -350,7 +350,7 @@ def run_alignment_qc(
         try:
             frame_sites = find_frame_breaking_indels(aln, genbank_path, reference_id=reference_id)
         except Exception as exc:
-            logging.warning("Frame-breaking indel check skipped due to error: %s", exc)
+            logging.warning(f"Frame-breaking indel check skipped due to error: {exc}")
 
     def _add_site(merged_sites, pos, seq_id, note):
         if pos not in merged_sites:
