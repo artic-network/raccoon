@@ -7,7 +7,7 @@ import argparse
 import logging
 from raccoon import __version__, _program
 from raccoon.commands import alignment as alignment_cmd, phylo as phylo_cmd, combine as combine_cmd, mask as mask_cmd
-
+from raccoon.utils import constants as rc
 
 def build_parser():
     parser = argparse.ArgumentParser(prog=_program, description="raccoon toolkit")
@@ -17,19 +17,19 @@ def build_parser():
     sub.required = True
 
     c = sub.add_parser('seq-qc', help='sequence QC (combine and harmonise FASTA files)')
-    c.add_argument('inputs', nargs='+', help='Input FASTA files (one or more)')
-    c.add_argument('-o', '--output', default='combined.fasta', help='Output FASTA file (use - for stdout)')
-    c.add_argument('--metadata', nargs='+', action='extend', default=None, help='Metadata CSV(s) for harmonised headers')
-    c.add_argument('--metadata-delimiter', default=',', help='Metadata delimiter (default: ,; auto-detects .tsv/.tab)')
-    c.add_argument('--metadata-id-field', default='id', help='Metadata id column (default: id)')
-    c.add_argument('--metadata-location-field', default='location', help='Metadata location column (default: location)')
-    c.add_argument('--metadata-date-field', default='date', help='Metadata date column (default: date)')
-    c.add_argument('--header-separator', default='|', help='Header separator (default: |)')
-    c.add_argument('--header-fields', default=None, help='Header template (e.g. "{id}|{location}|{date}"); overrides metadata field args if provided')
-    c.add_argument('--id-delimiter', default='|', help='Delimiter for parsing IDs from input headers (default: |)')
-    c.add_argument('--id-field', type=int, default=0, help='0-based field index for ID parsing (default: 0)')
+    c.add_argument('-f','--fasta', nargs='+', help='Input FASTA files (one or more)')
+    c.add_argument('-m','--metadata', nargs='+', action='extend', default=None, help='Input metadata CSV(s) for FASTA header population (one or more; optional)')
+    c.add_argument('--metadata-delimiter', default=rc.DEFAULT_METADATA_DELIMITER, help=f'Metadata delimiter (default: {rc.DEFAULT_METADATA_DELIMITER}; auto-detects .csv and .tsv files)')
+    c.add_argument('--metadata-id-field', default=rc.DEFAULT_ID_FIELD, help=f'Metadata id column used for matching sequence ID (default: {rc.DEFAULT_ID_FIELD})')
+    c.add_argument('--metadata-location-field', default=rc.DEFAULT_LOCATION_FIELD, help=f'Metadata location column (default: {rc.DEFAULT_LOCATION_FIELD})')
+    c.add_argument('--metadata-date-field', default=rc.DEFAULT_DATE_FIELD, help=f'Metadata date column (default: {rc.DEFAULT_DATE_FIELD})')
+    c.add_argument('--seq-id-delimiter', default=rc.DEFFAULT_ID_DELIMITER, help=f'Delimiter for parsing IDs from input headers (default: {rc.DEFFAULT_ID_DELIMITER})')
+    c.add_argument('--seq-id-field-index', type=int, default=rc.DEFAULT_ID_FIELD_INDEX, help=f'0-based field index for parsing IDs from input headers (default: {rc.DEFAULT_ID_FIELD_INDEX})')
     c.add_argument('--min-length', type=int, default=None, help='Minimum sequence length to keep')
     c.add_argument('--max-n-content', type=float, default=None, help='Maximum N content proportion to keep (e.g. 0.1)')
+    c.add_argument('--header-fields', default=rc.DEFAULT_HEADER_FIELDS, help=f'Template for constructing harmonised sequence header (e.g. "{rc.DEFAULT_HEADER_FIELDS}")')
+    c.add_argument('--header-separator', default=rc.DEFAULT_HEADER_SEPARATOR, help=f'Header separator (default: {rc.DEFAULT_HEADER_SEPARATOR})')
+    c.add_argument('-o', '--output', default='combined.fasta', help='Output FASTA file (use - for stdout)')
     c.set_defaults(func=combine_cmd.main)
 
     a = sub.add_parser('aln-qc', help='alignment QC')
@@ -38,7 +38,7 @@ def build_parser():
     a.add_argument('-d','--output-dir', default='.', dest='output_dir', help='Output directory')
     a.add_argument('--genbank', help='GenBank file for frame-breaking indel checks', dest='genbank', default=None)
     a.add_argument('--reference-id', help='Reference sequence ID in alignment (for GenBank features)', dest='reference_id', default=None)
-    a.add_argument('--n-threshold', type=float, default=0.2, dest='n_threshold', help='N content threshold for flagging (default: 0.2)')
+    a.add_argument('--max-n-content', type=float, default=0.2, help='N content threshold for flagging (default: 0.2)')
     a.add_argument('--cluster-window', type=int, default=10, dest='cluster_window', help='Window size for clustered SNP detection (default: 10bp)')
     a.add_argument('--cluster-count', type=int, default=3, dest='cluster_count', help='Min SNPs in window to flag as clustered (default: 3)')
     a.add_argument('--mask-clustered', default=True, action=argparse.BooleanOptionalAction, dest='mask_clustered', help='Mask clustered SNPs (default: True)')
