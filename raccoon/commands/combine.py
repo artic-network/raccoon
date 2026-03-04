@@ -9,7 +9,7 @@ from datetime import datetime
 from typing import Dict, Iterable, List, Optional, Tuple
 
 from Bio import SeqIO
-
+from raccoon.utils import constants as rc
 
 
 def parse_header_template(template: str) -> Tuple[str, List[str]]:
@@ -32,6 +32,9 @@ def parse_header_template(template: str) -> Tuple[str, List[str]]:
     # Determine separator by removing field placeholders
     separator = re.sub(field_pattern, '', template)
     
+    if len(set(separator)) > 1:
+        raise ValueError(f"Header template must use a single consistent separator between fields (e.g. '|'): {template}")
+
     return separator, fields
 
 
@@ -330,46 +333,44 @@ def parse_record_id(record_id: str, delimiter: str, field_index: int) -> str:
 
 
 def main(args):
-    """Combine fasta files into a single upper-case, unwrapped FASTA."""
-    if not hasattr(args, "inputs"):
-        raise ValueError("Expected argparse Namespace from raccoon.command.build_parser")
+    """Combine fasta files into a single upper-case, unwrapped FASTA. Headers can be harmonised using metadata and field templates."""
 
     try:
         from raccoon.utils import io
 
-        inputs = args.inputs or []
-        if not inputs:
+        input_fastas = args.fasta or []
+        if not input_fastas:
             logging.error("No input FASTA files provided")
             return 1
 
-        for path in inputs:
+        for path in input_fastas:
             if not io.validate_input_file(path, "FASTA file"):
                 return 1
 
         metadata_map: Optional[Dict[str, Dict[str, str]]] = None
         metadata_paths = list(getattr(args, "metadata", []) or [])
-        metadata_id_field = getattr(args, "metadata_id_field", "id")
-        metadata_location_field = getattr(args, "metadata_location_field", "location")
-        metadata_date_field = getattr(args, "metadata_date_field", "date")
-        metadata_delimiter = getattr(args, "metadata_delimiter", ",")
-        header_separator = getattr(args, "header_separator", "|")
-        header_fields_template = getattr(args, "header_fields", None)
-        id_delimiter = getattr(args, "id_delimiter", "|")
-        id_field = getattr(args, "id_field", 0)
+        metadata_delimiter = getattr(args, "metadata_delimiter", rc.DEFAULT_METADATA_DELIMITER)
+        metadata_id_field = getattr(args, "metadata_id_field", rc.DEFAULT_ID_FIELD)
+        metadata_location_field = getattr(args, "metadata_location_field", rc.DEFAULT_LOCATION_FIELD)
+        metadata_date_field = getattr(args, "metadata_date_field", rc.DEFAULT_DATE_FIELD)
+        seq_id_delimiter = getattr(args, "seq_id_delimiter", rc.DEFAULT_ID_DELIMITER)
+        seq_id_field_index = getattr(args, "seq_id_field_index", rc.DEFAULT_ID_FIELD_INDEX)
         min_length = getattr(args, "min_length", None)
         max_n_content = getattr(args, "max_n_content", None)
+        header_fields = getattr(args, "header_fields", None)
+        header_separator = getattr(args, "header_separator", rc.DEFAULT_HEADER_SEPARATOR)
 
         # Determine header template and field names
         if header_fields_template is None:
-            # Backward compatibility: construct template from existing parameters
-            header_fields_template = f"{{id}}{header_separator}{{location}}{header_separator}{{date}}"
-            template_field_names = ["id", "location", "date"]
+            # onstruct template from existing parameters
+            header_fields_template = f"{metadata_id_field}{header_separator}{metadata_location_field}{header_separator}{metadata_date_field}"
+            template_field_names = [metadata_id_field, metadata_location_field, metadata_date_field]
         else:
             # Parse user-provided template
             try:
                 _, template_field_names = parse_header_template(header_fields_template)
             except ValueError as e:
-                logging.error("Invalid header template: %s", str(e))
+                logging.error(f"Invalid header template: {str(e)}")
                 return 1
 
         if metadata_paths:
@@ -378,7 +379,7 @@ def main(args):
                     return 1
             metadata_map, metadata_error = load_metadata_maps(metadata_paths, metadata_id_field, metadata_delimiter)
             if metadata_error:
-                logging.error("Failed to load metadata: %s", metadata_error)
+                logging.error(f"Failed to load metadata: {metadata_error}")
                 return 1
             
             # Get available metadata columns from the first row (for validation)
@@ -395,9 +396,7 @@ def main(args):
                             bom_field = f"\ufeff{field_name}"
                             if bom_field not in metadata_columns:
                                 logging.error(
-                                    "Field '%s' in header template not found in metadata columns: %s",
-                                    field_name,
-                                    ", ".join(metadata_columns)
+                                    f"Field '{field_name}' in header template not found in metadata columns: {', '.join(metadata_columns)}"
                                 )
                                 return 1
             
@@ -426,7 +425,7 @@ def main(args):
         filter_failures = []
         metadata_issues = []
         try:
-            for path in inputs:
+            for path in input_fastas:
                 for rec in SeqIO.parse(path, "fasta"):
                     seq = str(rec.seq)
                     seq_len = len(seq)
@@ -441,7 +440,7 @@ def main(args):
                             location_value = get_field(metadata_row, metadata_location_field).strip()
                             date_value = get_field(metadata_row, metadata_date_field).strip()
                         else:
-                            logging.warning("No metadata row found for %s", parsed_id)
+                            logging.warning(f"No metadata row found for {parsed_id}")
                     reasons = []
                     if min_length is not None and seq_len < min_length:
                         reasons.append(f"length < {min_length}")
@@ -514,7 +513,7 @@ def main(args):
                             try:
                                 header = format_header_from_template(header_fields_template, field_values)
                             except ValueError as e:
-                                logging.error("Failed to format header for %s: %s", parsed_id, str(e))
+                                logging.error(f"Failed to format header for {parsed_id}: {str(e)}")
                                 continue
                     write_fasta_record(out_handle, header, seq)
                     kept_count += 1
@@ -551,7 +550,7 @@ def main(args):
             reporting.generate_combine_report(
                 outdir=report_outdir,
                 output_fasta=output_path if output_path != "-" else "",
-                input_fastas=inputs,
+                input_fastas=input_fastas,
                 metadata_paths=metadata_paths or None,
                 metadata_id_field=metadata_id_field,
                 metadata_location_field=metadata_location_field,
@@ -565,7 +564,7 @@ def main(args):
         except Exception:
             logging.exception("Failed to generate combine report")
 
-        logging.info("Combined %d input FASTA files", len(inputs))
+        logging.info("Combined %d input FASTA files", len(input_fastas))
         if min_length is not None or max_n_content is not None:
             logging.info("Filtered %d sequences; kept %d", filtered_count, kept_count)
         return 0
