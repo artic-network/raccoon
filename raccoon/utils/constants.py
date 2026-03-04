@@ -68,6 +68,9 @@ KEY_MASK_N_ADJACENT = "mask_n_adjacent"
 KEY_MASK_GAP_ADJACENT = "mask_gap_adjacent"
 KEY_MASK_FRAME_BREAK = "mask_frame_break"
 
+
+# Default values for seq-qc cli args
+
 DEFAULT_ID_FIELD = "sample"
 DEFAULT_LOCATION_FIELD = "location"
 DEFAULT_DATE_FIELD = "date"
@@ -77,7 +80,9 @@ DEFFAULT_ID_DELIMITER = "|"
 DEFAULT_METADATA_DELIMITER = ","
 
 DEFAULT_HEADER_SEPARATOR = "|"
-DEFAULT_HEADER_FIELDS = "sample|location|date"
+DEFAULT_HEADER_FIELDS = "{sample}|{location}|{date}"
+
+DEFAULT_OUTPUT_FILE = "combined.fasta"
 
 DEFAULT_N_THRESHOLD = 0.2
 DEFAULT_CLUSTER_WINDOW = 10
