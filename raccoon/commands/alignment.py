@@ -34,7 +34,7 @@ def main(args):
             return 1
         
         reference = getattr(args, rc.KEY_REFERENCE_ID, None)
-        n_threshold = getattr(args, rc.KEY_N_THRESHOLD, rc.DEFAULT_N_THRESHOLD)
+        n_threshold = getattr(args, rc.KEY_MAX_N_CONTENT, rc.DEFAULT_N_THRESHOLD)
         cluster_window = getattr(args, rc.KEY_CLUSTER_WINDOW, rc.DEFAULT_CLUSTER_WINDOW)
         cluster_count = getattr(args, rc.KEY_CLUSTER_COUNT, rc.DEFAULT_CLUSTER_COUNT)
         mask_clustered = getattr(args, rc.KEY_MASK_CLUSTERED, True) 
