@@ -30,12 +30,12 @@ jobs:
       - name: Run test suite
         run: python -m pytest
       - name: Run raccoon seq-qc with test data
-        run: raccoon seq-qc examples/combine/inputs/set_a.fasta examples/combine/inputs/set_b.fasta -o /tmp/combined.fasta
+        run: raccoon seq-qc -f examples/combine/inputs/set_a.fasta examples/combine/inputs/set_b.fasta -o /tmp/combined.fasta
       - name: Run raccoon aln-qc with test data
         run: raccoon aln-qc examples/constructed_alignment.fasta -d /tmp/aln_out --genbank examples/constructed_reference.gb --reference-id ref --no-mask-n-adjacent --no-mask-gap-adjacent
       - name: Run raccoon aln-qc with masking
         run: raccoon aln-qc examples/constructed_alignment.fasta -d /tmp/aln_out --reference-id ref 
       - name: Run raccoon tree-qc
-        run: raccoon tree-qc --phylogeny examples/mini_tree/mini.pruned.tree --asr-state examples/mini_tree/mini.state --alignment examples/mini_tree/mini.aln.fasta -d /tmp/phylo_out --run-adar --adar-window 300 --adar-min-count 3
+        run: raccoon tree-qc -t examples/mini_tree/mini.pruned.tree --asr-state examples/mini_tree/mini.state --alignment examples/mini_tree/mini.aln.fasta -d /tmp/phylo_out --run-adar --adar-window 300 --adar-min-count 3
 
 
