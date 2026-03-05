@@ -429,7 +429,11 @@ def test_header_template_subset_fields(tmp_path):
 
 
 def test_header_template_mismatch_id_fields(tmp_path):
-    """Test header template with mismatching custom metadata id names."""
+    """Test that metadata_id_field must exist in the metadata file.
+    
+    This test specifies a mismatched ID field - the metadata file doesn't have
+    the "sample" column that's requested as metadata_id_field.
+    """
     fasta_path = tmp_path / "a.fasta"
     _write_fasta(fasta_path, [("seq1", "acgt")])
 
@@ -448,15 +452,13 @@ def test_header_template_mismatch_id_fields(tmp_path):
         fasta=[str(fasta_path)],
         output=str(out),
         metadata=[str(metadata_path)],
-        metadata_id_field="sample",
+        metadata_id_field="sample",  # This column doesn't exist!
         header_fields="{sample_id}|{country}|{collection_date}",
     )
 
     result = combine.main(args)
-    assert result == 0
-
-    lines = out.read_text().strip().splitlines()
-    assert lines[0] == ">seq1"
+    # Should exit with error since "sample" column not found
+    assert result == 1
 
 
 def test_header_template_custom_metadata_fields(tmp_path):
@@ -862,7 +864,7 @@ def test_header_fields_id_special_mapping(tmp_path):
 
     lines = out.read_text().strip().splitlines()
     # {seq_name} should be the parsed ID (MYSEQ), and location from metadata
-    assert lines[0] == ">myseq|uk"
+    assert lines[0] == ">MYSEQ|uk"
 
 
 def test_empty_metadata_field_values(tmp_path):
@@ -1208,8 +1210,8 @@ def test_min_length_and_max_n_content_combined(tmp_path):
     assert ">seq4" not in lines
 
 
-def test_id_not_in_metadata_is_included_with_empty_values(tmp_path):
-    """Test that sequences with IDs not in metadata are included with empty field values."""
+def test_id_not_in_metadata_logs_warning(tmp_path):
+    """Test that sequences with IDs not in metadata are logged as issues but still written."""
     fasta_path = tmp_path / "a.fasta"
     _write_fasta(fasta_path, [
         ("seq1", "acgt"),
@@ -1229,7 +1231,6 @@ def test_id_not_in_metadata_is_included_with_empty_values(tmp_path):
     )
 
     out = tmp_path / "combined.fasta"
-    metadata_issues = tmp_path / "seq_qc_metadata_issues.csv"
     args = MockArgs(
         fasta=[str(fasta_path)],
         output=str(out),
@@ -1240,12 +1241,13 @@ def test_id_not_in_metadata_is_included_with_empty_values(tmp_path):
     assert result == 0
 
     lines = out.read_text().strip().splitlines()
-    # seq2 should have empty location and date fields
-    assert ">seq2||" in lines
+    # seq2 should still be included but without metadata formatting
+    assert ">seq2" in lines
+    assert "GGGG" in lines
 
 
-def test_duplicate_ids_in_metadata_uses_first_match(tmp_path):
-    """Test that when multiple metadata rows have the same ID, the first match is used."""
+def test_duplicate_ids_in_metadata_raises_error(tmp_path):
+    """Test that duplicate IDs in metadata cause an informative error."""
     fasta_path = tmp_path / "a.fasta"
     _write_fasta(fasta_path, [("seq1", "acgt")])
 
@@ -1268,11 +1270,8 @@ def test_duplicate_ids_in_metadata_uses_first_match(tmp_path):
     )
 
     result = combine.main(args)
-    assert result == 0
-
-    lines = out.read_text().strip().splitlines()
-    # Should use first match (UK, not US)
-    assert lines[0] == ">seq1|uk|2024-01-01"
+    # Should exit with error due to duplicate ID
+    assert result == 1
 
 
 def test_case_sensitivity_in_id_matching(tmp_path):
@@ -1305,16 +1304,16 @@ def test_case_sensitivity_in_id_matching(tmp_path):
     assert result == 0
 
     lines = out.read_text().strip().splitlines()
-    # seq1 matches (case-sensitive), SEQ2 doesn't match seq2
+    # seq1 matches (case-sensitive match)
     assert lines[0] == ">seq1|uk|2024-01-01"
-    # SEQ2 should have empty fields since it doesn't match seq2
-    assert lines[2] == ">seq2||"
+    # SEQ2 doesn't match seq2 (case-sensitive, so no match) - outputs original header
+    assert lines[2] == ">SEQ2"
 
 
-def test_whitespace_in_headers_preserved(tmp_path):
-    """Test handling of whitespace in FASTA headers."""
+def test_whitespace_in_fasta_headers_stripped(tmp_path):
+    """Test that FASTA parser strips whitespace from headers."""
     fasta_path = tmp_path / "a.fasta"
-    # FASTA headers with leading/trailing whitespace
+    # Write raw FASTA with whitespace in header
     fasta_path.write_text(">  seq1  \nacgt\n")
 
     out = tmp_path / "combined.fasta"
@@ -1327,8 +1326,8 @@ def test_whitespace_in_headers_preserved(tmp_path):
     assert result == 0
 
     lines = out.read_text().strip().splitlines()
-    # Whitespace should be preserved in the header value
-    assert ">  seq1  " in lines
+    # FASTA parser strips leading/trailing whitespace from headers
+    assert ">seq1" in lines
 
 
 def test_whitespace_in_metadata_values(tmp_path):
@@ -1458,12 +1457,37 @@ def test_duplicate_sequence_ids_in_same_file(tmp_path):
     assert header_count == 3
 
 
-def test_unicode_characters_in_metadata(tmp_path):
-    """Test handling of Unicode characters in metadata fields."""
+def test_unicode_characters_in_metadata_id_raises_error(tmp_path):
+    """Test that Unicode/special characters in metadata ID field cause an error."""
     fasta_path = tmp_path / "a.fasta"
     _write_fasta(fasta_path, [("seq1", "acgt")])
 
     metadata_path = tmp_path / "meta.csv"
+    # ID with Unicode character should cause error
+    metadata_path.write_text(
+        'sample,location,date\nseq1_São,location1,2024-01-01\n',
+        encoding='utf-8'
+    )
+
+    out = tmp_path / "combined.fasta"
+    args = MockArgs(
+        fasta=[str(fasta_path)],
+        output=str(out),
+        metadata=[str(metadata_path)],
+    )
+
+    result = combine.main(args)
+    # Should error because metadata ID contains special/Unicode characters
+    assert result == 1
+
+
+def test_unicode_characters_in_metadata_fields_preserved(tmp_path):
+    """Test that Unicode in non-ID metadata fields are preserved (not converted)."""
+    fasta_path = tmp_path / "a.fasta"
+    _write_fasta(fasta_path, [("seq1", "acgt")])
+
+    metadata_path = tmp_path / "meta.csv"
+    # Unicode in location field (not ID) is OK - preserved as-is
     metadata_path.write_text(
         'sample,location,date\nseq1,São Paulo,2024-01-01\n',
         encoding='utf-8'
@@ -1480,8 +1504,8 @@ def test_unicode_characters_in_metadata(tmp_path):
     assert result == 0
 
     lines = out.read_text().strip().splitlines()
-    # Unicode characters should be replaced during sanitization
-    assert lines[0] == ">seq1|s_o_paulo|2024-01-01"
+    # Unicode in location is preserved but space is replaced with underscore
+    assert lines[0] == ">seq1|são_paulo|2024-01-01"
 
 
 def test_sequence_id_with_special_delimiter_characters(tmp_path):
@@ -1563,3 +1587,80 @@ def test_all_sequences_filtered_out(tmp_path):
     # Output file should be empty or just have headers
     content = out.read_text().strip()
     assert content == "" or content.count(">") == 0
+
+
+def test_metadata_id_with_special_characters_error(tmp_path):
+    """Test that metadata IDs with special characters are rejected."""
+    fasta_path = tmp_path / "a.fasta"
+    _write_fasta(fasta_path, [("seq1", "acgt")])
+
+    metadata_path = tmp_path / "meta.csv"
+    # ID with space (special character not allowed)
+    metadata_path.write_text(
+        'sample,location,date\nseq 1,location1,2024-01-01\n'
+    )
+
+    out = tmp_path / "combined.fasta"
+    args = MockArgs(
+        fasta=[str(fasta_path)],
+        output=str(out),
+        metadata=[str(metadata_path)],
+    )
+
+    result = combine.main(args)
+    # Should error because metadata ID contains space
+    assert result == 1
+
+
+def test_metadata_id_with_unicode_raises_error(tmp_path):
+    """Test that Unicode/special characters in metadata ID field cause an error."""
+    fasta_path = tmp_path / "a.fasta"
+    _write_fasta(fasta_path, [("seq1", "acgt")])
+
+    metadata_path = tmp_path / "meta.csv"
+    # ID with Unicode character should cause error
+    metadata_path.write_text(
+        'sample,location,date\nseq1_São,location1,2024-01-01\n',
+        encoding='utf-8'
+    )
+
+    out = tmp_path / "combined.fasta"
+    args = MockArgs(
+        fasta=[str(fasta_path)],
+        output=str(out),
+        metadata=[str(metadata_path)],
+    )
+
+    result = combine.main(args)
+    # Should error because metadata ID contains special/Unicode characters
+    assert result == 1
+
+
+def test_metadata_id_valid_characters(tmp_path):
+    """Test that valid ID characters (alphanumeric, hyphen, underscore, dot) are allowed."""
+    fasta_path = tmp_path / "a.fasta"
+    _write_fasta(fasta_path, [
+        ("seq-1_a.1", "acgt"),
+        ("sample.2-b_3", "gggg"),
+    ])
+
+    metadata_path = tmp_path / "meta.csv"
+    metadata_path.write_text(
+        'sample,location,date\n'
+        'seq-1_a.1,USA,2024-01-01\n'
+        'sample.2-b_3,UK,2024-01-02\n'
+    )
+
+    out = tmp_path / "combined.fasta"
+    args = MockArgs(
+        fasta=[str(fasta_path)],
+        output=str(out),
+        metadata=[str(metadata_path)],
+    )
+
+    result = combine.main(args)
+    assert result == 0
+
+    lines = out.read_text().strip().splitlines()
+    assert lines[0] == ">seq-1_a.1|usa|2024-01-01"
+    assert lines[2] == ">sample.2-b_3|uk|2024-01-02"

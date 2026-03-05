@@ -73,7 +73,15 @@ def format_header_from_template(
         return sanitized
     
     # Create sanitized field values
-    sanitized = {k: _sanitize(v) if k != metadata_id_field else v for k, v in field_values.items()}
+    # Note: only sanitize non-id fields. The ID field is passed through as-is (no modification)
+    sanitized = {}
+    for k, v in field_values.items():
+        if k == metadata_id_field:
+            # For ID field: no sanitization - it should be a clean identifier
+            sanitized[k] = str(v).strip() if v else ""
+        else:
+            # For other fields: apply full sanitization
+            sanitized[k] = _sanitize(v)
     
     # Format using template
     try:
@@ -249,13 +257,25 @@ def load_metadata_map(metadata_path: str, id_field: str, delimiter: str) -> Opti
     Returns:
         Tuple of (metadata_dict, error_message)
         - If successful: (metadata_dict, None)
-        - If parse error with unescaped delimiters: (None, error_message)
+        - If parse error with unescaped delimiters or duplicate IDs: (None, error_message)
     """
     metadata = {}
+    seen_ids = set()
     
     with open(metadata_path, "r", newline="") as handle:
         reader = csv.DictReader(handle, delimiter=delimiter)
         fieldnames = reader.fieldnames
+        
+        # Validate that the ID field exists in the header
+        if fieldnames:
+            # Check for ID field, accounting for possible BOM marker
+            has_id_field = id_field in fieldnames or f"\ufeff{id_field}" in fieldnames
+            if not has_id_field:
+                return None, None, (
+                    f"Specified ID column '{id_field}' not found in metadata file {metadata_path}. "
+                    f"Available columns: {', '.join(fieldnames)}"
+                )
+        
         expected_field_count = len(fieldnames) if fieldnames else 0
         
         for row_num, row in enumerate(reader, start=2):  # Start at 2 (after header)
@@ -272,6 +292,25 @@ def load_metadata_map(metadata_path: str, id_field: str, delimiter: str) -> Opti
             key = get_field(row, id_field)
             if not key:
                 continue
+            
+            # Validate that ID doesn't contain special characters that would break phylogenetic tools
+            # Allow alphanumeric, hyphen, underscore, dot only
+            if not re.match(r'^[a-zA-Z0-9_.\-]+$', key):
+                invalid_chars = set(key) - set('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_.-')
+                return None, None, (
+                    f"Row {row_num}: Invalid characters in ID '{key}'. "
+                    f"ID values must contain only alphanumeric characters, hyphens, underscores, and dots. "
+                    f"Found invalid characters: {', '.join(sorted(invalid_chars))}"
+                )
+            
+            # Check for duplicate IDs
+            if key in seen_ids:
+                return None, None, (
+                    f"Duplicate ID '{key}' found in metadata file {metadata_path} at row {row_num}. "
+                    f"All IDs in the metadata column '{id_field}' must be unique."
+                )
+            
+            seen_ids.add(key)
             metadata[key] = row
     
     return metadata, fieldnames, None
@@ -378,7 +417,7 @@ def main(args):
 
         # Determine header template and field names
         if header_fields_template is None:
-            # Construct template from existing parameters - always use "id" as the template field name
+            # Construct template from existing parameters - always use "metadata_id_field" as the template field name
             header_fields_template = f"{{{metadata_id_field}}}{header_separator}{{{metadata_location_field}}}{header_separator}{{{metadata_date_field}}}"
             template_field_names = [metadata_id_field, metadata_location_field, metadata_date_field]
         else:
@@ -404,7 +443,9 @@ def main(args):
                 # If header_fields template is provided, validate all fields exist in metadata
                 if header_fields_template is not None and getattr(args, "header_fields", None) is not None:
                     for field_name in template_field_names:
-                        # Skip metadata_id_field - it comes from parsed_id, not metadata
+                        # Skip "id" field - it comes from parsed_id, not metadata
+                        if field_name == "id":
+                            continue
                         
                         if field_name not in metadata_columns:
                             # Check for BOM-prefixed field name
@@ -529,7 +570,7 @@ def main(args):
                                     field_values[field_name] = raw_value
                             
                             try:
-                                header = format_header_from_template(header_fields_template, "id", field_values)
+                                header = format_header_from_template(header_fields_template, metadata_id_field, field_values)
                             except ValueError as e:
                                 logging.error(f"Failed to format header for {parsed_id}: {str(e)}")
                                 continue
