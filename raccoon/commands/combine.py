@@ -466,7 +466,7 @@ def main(args):
         else:
             detected_date_field = None
 
-        output_path = args.output or rc.DEFAULT_OUTPUT_FILE
+        output_path = args.outfile or rc.DEFAULT_OUTPUT_FILE
         if output_path == "-":
             out_handle = sys.stdout
             close_handle = False

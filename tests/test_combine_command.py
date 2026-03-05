@@ -8,7 +8,7 @@ from raccoon.commands import combine
 class MockArgs:
     def __init__(self, **kwargs):
         self.fasta = kwargs.get("fasta", [])
-        self.output = kwargs.get("output", None)
+        self.outfile = kwargs.get("outfile", None)
         self.metadata = kwargs.get("metadata", None)
         self.metadata_delimiter = kwargs.get("metadata_delimiter", ",")
         self.metadata_id_field = kwargs.get("metadata_id_field", "sample")
@@ -38,7 +38,7 @@ def test_combine_uppercase_and_unwrapped(tmp_path):
     _write_fasta(f2, [("seq3", "tttt")])
 
     out = tmp_path / "combined.fasta"
-    args = MockArgs(fasta=[str(f1), str(f2)], output=str(out))
+    args = MockArgs(fasta=[str(f1), str(f2)], outfile=str(out))
 
     result = combine.main(args)
     assert result == 0
@@ -70,7 +70,7 @@ def test_combine_harmonises_headers_with_metadata(tmp_path):
     out = tmp_path / "combined.fasta"
     args = MockArgs(
         fasta=[str(fasta_path)],
-        output=str(out),
+        outfile=str(out),
         metadata=[str(metadata_path)],
     )
 
@@ -94,7 +94,7 @@ def test_combine_examples_same_headers(tmp_path):
             str(examples / "inputs" / "set_a.fasta"),
             str(examples / "inputs" / "set_b.fasta"),
         ],
-        output=str(out),
+        outfile=str(out),
     )
 
     result = combine.main(args)
@@ -129,7 +129,7 @@ def test_combine_examples_harmonised_headers(tmp_path):
             str(examples / "inputs" / "set_a.fasta"),
             str(examples / "inputs" / "set_b.fasta"),
         ],
-        output=str(out),
+        outfile=str(out),
         metadata=[str(examples / "metadata.csv")],
     )
 
@@ -178,7 +178,7 @@ def test_combine_multiple_metadata_files(tmp_path):
     out = tmp_path / "combined.fasta"
     args = MockArgs(
         fasta=[str(fasta_path)],
-        output=str(out),
+        outfile=str(out),
         metadata=[str(meta1), str(meta2)],
     )
 
@@ -209,7 +209,7 @@ def test_combine_parses_id_from_header(tmp_path):
     out = tmp_path / "combined.fasta"
     args = MockArgs(
         fasta=[str(fasta_path)],
-        output=str(out),
+        outfile=str(out),
         metadata=[str(metadata_path)],
         id_delimiter="|",
         id_field=0,
@@ -228,7 +228,7 @@ def test_combine_id_field_out_of_range_keeps_full_id(tmp_path):
     out = tmp_path / "combined.fasta"
     args = MockArgs(
         fasta=[str(fasta_path)],
-        output=str(out),
+        outfile=str(out),
         id_delimiter="|",
         id_field=10,
     )
@@ -273,7 +273,7 @@ def test_combine_writes_filter_and_metadata_issue_csvs(tmp_path):
     out = tmp_path / "combined.fasta"
     args = MockArgs(
         fasta=[str(fasta_path)],
-        output=str(out),
+        outfile=str(out),
         metadata=[str(metadata_path)],
         metadata_delimiter=",",
         min_length=5,
@@ -319,7 +319,7 @@ def test_header_template_basic(tmp_path):
     out = tmp_path / "combined.fasta"
     args = MockArgs(
         fasta=[str(fasta_path)],
-        output=str(out),
+        outfile=str(out),
         metadata=[str(metadata_path)],
         header_fields="{sample}|{location}|{date}",
     )
@@ -353,7 +353,7 @@ def test_header_template_different_order(tmp_path):
     out = tmp_path / "combined.fasta"
     args = MockArgs(
         fasta=[str(fasta_path)],
-        output=str(out),
+        outfile=str(out),
         metadata=[str(metadata_path)],
         header_fields="{date}_{location}_{sample}",
     )
@@ -386,7 +386,7 @@ def test_header_template_custom_separator(tmp_path):
     out = tmp_path / "combined.fasta"
     args = MockArgs(
         fasta=[str(fasta_path)],
-        output=str(out),
+        outfile=str(out),
         metadata=[str(metadata_path)],
         header_fields="{sample}:{location}:{date}",
     )
@@ -416,7 +416,7 @@ def test_header_template_subset_fields(tmp_path):
     out = tmp_path / "combined.fasta"
     args = MockArgs(
         fasta=[str(fasta_path)],
-        output=str(out),
+        outfile=str(out),
         metadata=[str(metadata_path)],
         header_fields="{sample}|{location}",  # No date
     )
@@ -450,7 +450,7 @@ def test_header_template_mismatch_id_fields(tmp_path):
     out = tmp_path / "combined.fasta"
     args = MockArgs(
         fasta=[str(fasta_path)],
-        output=str(out),
+        outfile=str(out),
         metadata=[str(metadata_path)],
         metadata_id_field="sample",  # This column doesn't exist!
         header_fields="{sample_id}|{country}|{collection_date}",
@@ -479,7 +479,7 @@ def test_header_template_custom_metadata_fields(tmp_path):
     out = tmp_path / "combined.fasta"
     args = MockArgs(
         fasta=[str(fasta_path)],
-        output=str(out),
+        outfile=str(out),
         metadata=[str(metadata_path)],
         metadata_id_field="sample_id",
         header_fields="{sample_id}|{country}|{collection_date}",
@@ -512,7 +512,7 @@ def test_backward_compatibility_no_header_fields(tmp_path):
     # Note: NOT providing header_fields, should use default
     args = MockArgs(
         fasta=[str(fasta_path)],
-        output=str(out),
+        outfile=str(out),
         metadata=[str(metadata_path)],
     )
 
@@ -538,7 +538,7 @@ def test_metadata_args_without_metadata_file(tmp_path):
     # Provide metadata args but NOT the actual metadata file
     args = MockArgs(
         fasta=[str(fasta_path)],
-        output=str(out),
+        outfile=str(out),
         metadata=None,  # No metadata file
         metadata_delimiter="\t",  # These args are ignored
         metadata_id_field="sample_id",
@@ -572,7 +572,7 @@ def test_metadata_missing_location_field(tmp_path):
     out = tmp_path / "combined.fasta"
     args = MockArgs(
         fasta=[str(fasta_path)],
-        output=str(out),
+        outfile=str(out),
         metadata=[str(metadata_path)],
         metadata_location_field="location",  # This field doesn't exist
     )
@@ -605,7 +605,7 @@ def test_metadata_missing_date_field(tmp_path):
     out = tmp_path / "combined.fasta"
     args = MockArgs(
         fasta=[str(fasta_path)],
-        output=str(out),
+        outfile=str(out),
         metadata=[str(metadata_path)],
         metadata_date_field="date",  # This field doesn't exist
     )
@@ -637,7 +637,7 @@ def test_metadata_both_location_and_date_missing(tmp_path):
     out = tmp_path / "combined.fasta"
     args = MockArgs(
         fasta=[str(fasta_path)],
-        output=str(out),
+        outfile=str(out),
         metadata=[str(metadata_path)],
         metadata_id_field="id",
     )
@@ -671,7 +671,7 @@ def test_header_fields_takes_precedence_over_location_date_args(tmp_path):
     # header-fields should take precedence
     args = MockArgs(
         fasta=[str(fasta_path)],
-        output=str(out),
+        outfile=str(out),
         metadata=[str(metadata_path)],
         metadata_location_field="location",
         metadata_date_field="date",
@@ -705,7 +705,7 @@ def test_header_fields_with_nonexistent_metadata_field(tmp_path):
     out = tmp_path / "combined.fasta"
     args = MockArgs(
         fasta=[str(fasta_path)],
-        output=str(out),
+        outfile=str(out),
         metadata=[str(metadata_path)],
         # Template references 'date' field that doesn't exist
         header_fields="{sample}|{location}|{date}",
@@ -732,7 +732,7 @@ def test_header_fields_invalid_template_syntax(tmp_path):
     out = tmp_path / "combined.fasta"
     args = MockArgs(
         fasta=[str(fasta_path)],
-        output=str(out),
+        outfile=str(out),
         metadata=[str(metadata_path)],
         header_fields="invalid template with no placeholders",  # No {} placeholders
     )
@@ -760,7 +760,7 @@ def test_header_fields_with_mixed_custom_and_standard_fields(tmp_path):
     out = tmp_path / "combined.fasta"
     args = MockArgs(
         fasta=[str(fasta_path)],
-        output=str(out),
+        outfile=str(out),
         metadata=[str(metadata_path)],
         header_fields="{host}_{region}_{sample}",
     )
@@ -786,7 +786,7 @@ def test_conflicting_metadata_delimiter_and_tsv_extension(tmp_path):
     out = tmp_path / "combined.fasta"
     args = MockArgs(
         fasta=[str(fasta_path)],
-        output=str(out),
+        outfile=str(out),
         metadata=[str(metadata_path)],
         metadata_delimiter=",",  # User specifies comma, but file is TampleSV
     )
@@ -819,7 +819,7 @@ def test_metadata_id_field_with_pipe_parsing(tmp_path):
     out = tmp_path / "combined.fasta"
     args = MockArgs(
         fasta=[str(fasta_path)],
-        output=str(out),
+        outfile=str(out),
         metadata=[str(metadata_path)],
         metadata_id_field="sample_id",  # Metadata uses different column name
         id_delimiter="|",
@@ -853,7 +853,7 @@ def test_header_fields_id_special_mapping(tmp_path):
     out = tmp_path / "combined.fasta"
     args = MockArgs(
         fasta=[str(fasta_path)],
-        output=str(out),
+        outfile=str(out),
         metadata=[str(metadata_path)],
         metadata_id_field="seq_name",
         header_fields="{seq_name}|{location}",
@@ -887,7 +887,7 @@ def test_empty_metadata_field_values(tmp_path):
     out = tmp_path / "combined.fasta"
     args = MockArgs(
         fasta=[str(fasta_path)],
-        output=str(out),
+        outfile=str(out),
         metadata=[str(metadata_path)],
     )
 
@@ -907,7 +907,7 @@ def test_header_fields_only_id(tmp_path):
     out = tmp_path / "combined.fasta"
     args = MockArgs(
         fasta=[str(fasta_path)],
-        output=str(out),
+        outfile=str(out),
         metadata=None,  # No metadata
         header_fields="{sample}",  # Just the sample ID, no metadata fields
     )
@@ -928,7 +928,7 @@ def test_metadata_args_present_but_empty_list(tmp_path):
     out = tmp_path / "combined.fasta"
     args = MockArgs(
         fasta=[str(fasta_path)],
-        output=str(out),
+        outfile=str(out),
         metadata=[],  # Empty list, not None
     )
 
@@ -958,7 +958,7 @@ def test_date_harmonization_with_header_fields(tmp_path):
     out = tmp_path / "combined.fasta"
     args = MockArgs(
         fasta=[str(fasta_path)],
-        output=str(out),
+        outfile=str(out),
         metadata=[str(metadata_path)],
         # Template with custom date field name - final field should be treated as date
         header_fields="{sample}|{location}|{sample_date}",
@@ -992,7 +992,7 @@ def test_date_harmonization_default_date_field(tmp_path):
     out = tmp_path / "combined.fasta"
     args = MockArgs(
         fasta=[str(fasta_path)],
-        output=str(out),
+        outfile=str(out),
         metadata=[str(metadata_path)],
         # No header_fields template - use defaults
     )
@@ -1025,7 +1025,7 @@ def test_csv_unescaped_delimiters_error(tmp_path):
     out = tmp_path / "combined.fasta"
     args = MockArgs(
         fasta=[str(fasta_path)],
-        output=str(out),
+        outfile=str(out),
         metadata=[str(metadata_path)],
     )
 
@@ -1053,7 +1053,7 @@ def test_csv_properly_quoted_delimiters(tmp_path):
     out = tmp_path / "combined.fasta"
     args = MockArgs(
         fasta=[str(fasta_path)],
-        output=str(out),
+        outfile=str(out),
         metadata=[str(metadata_path)],
     )
 
@@ -1083,7 +1083,7 @@ def test_sanitization_preserves_hyphens(tmp_path):
     out = tmp_path / "combined.fasta"
     args = MockArgs(
         fasta=[str(fasta_path)],
-        output=str(out),
+        outfile=str(out),
         metadata=[str(metadata_path)],
     )
 
@@ -1113,7 +1113,7 @@ def test_sanitization_special_chars_to_underscores(tmp_path):
     out = tmp_path / "combined.fasta"
     args = MockArgs(
         fasta=[str(fasta_path)],
-        output=str(out),
+        outfile=str(out),
         metadata=[str(metadata_path)],
     )
 
@@ -1142,7 +1142,7 @@ def test_min_length_filtering(tmp_path):
     out = tmp_path / "combined.fasta"
     args = MockArgs(
         fasta=[str(fasta_path)],
-        output=str(out),
+        outfile=str(out),
         min_length=10,  # Only keep sequences >= 10 bp
     )
 
@@ -1168,7 +1168,7 @@ def test_max_n_content_filtering(tmp_path):
     out = tmp_path / "combined.fasta"
     args = MockArgs(
         fasta=[str(fasta_path)],
-        output=str(out),
+        outfile=str(out),
         max_n_content=0.5,  # Only keep sequences with <= 50% N
     )
 
@@ -1195,7 +1195,7 @@ def test_min_length_and_max_n_content_combined(tmp_path):
     out = tmp_path / "combined.fasta"
     args = MockArgs(
         fasta=[str(fasta_path)],
-        output=str(out),
+        outfile=str(out),
         min_length=10,
         max_n_content=0.5,
     )
@@ -1233,7 +1233,7 @@ def test_id_not_in_metadata_logs_warning(tmp_path):
     out = tmp_path / "combined.fasta"
     args = MockArgs(
         fasta=[str(fasta_path)],
-        output=str(out),
+        outfile=str(out),
         metadata=[str(metadata_path)],
     )
 
@@ -1265,7 +1265,7 @@ def test_duplicate_ids_in_metadata_raises_error(tmp_path):
     out = tmp_path / "combined.fasta"
     args = MockArgs(
         fasta=[str(fasta_path)],
-        output=str(out),
+        outfile=str(out),
         metadata=[str(metadata_path)],
     )
 
@@ -1296,7 +1296,7 @@ def test_case_sensitivity_in_id_matching(tmp_path):
     out = tmp_path / "combined.fasta"
     args = MockArgs(
         fasta=[str(fasta_path)],
-        output=str(out),
+        outfile=str(out),
         metadata=[str(metadata_path)],
     )
 
@@ -1319,7 +1319,7 @@ def test_whitespace_in_fasta_headers_stripped(tmp_path):
     out = tmp_path / "combined.fasta"
     args = MockArgs(
         fasta=[str(fasta_path)],
-        output=str(out),
+        outfile=str(out),
     )
 
     result = combine.main(args)
@@ -1344,7 +1344,7 @@ def test_whitespace_in_metadata_values(tmp_path):
     out = tmp_path / "combined.fasta"
     args = MockArgs(
         fasta=[str(fasta_path)],
-        output=str(out),
+        outfile=str(out),
         metadata=[str(metadata_path)],
     )
 
@@ -1374,7 +1374,7 @@ def test_missing_metadata_id_column(tmp_path):
     out = tmp_path / "combined.fasta"
     args = MockArgs(
         fasta=[str(fasta_path)],
-        output=str(out),
+        outfile=str(out),
         metadata=[str(metadata_path)],
         metadata_id_field="sample",  # Asking for 'sample' column which doesn't exist
     )
@@ -1392,7 +1392,7 @@ def test_empty_fasta_file(tmp_path):
     out = tmp_path / "combined.fasta"
     args = MockArgs(
         fasta=[str(fasta_path)],
-        output=str(out),
+        outfile=str(out),
     )
 
     result = combine.main(args)
@@ -1420,7 +1420,7 @@ def test_single_sequence(tmp_path):
     out = tmp_path / "combined.fasta"
     args = MockArgs(
         fasta=[str(fasta_path)],
-        output=str(out),
+        outfile=str(out),
         metadata=[str(metadata_path)],
     )
 
@@ -1445,7 +1445,7 @@ def test_duplicate_sequence_ids_in_same_file(tmp_path):
     out = tmp_path / "combined.fasta"
     args = MockArgs(
         fasta=[str(fasta_path)],
-        output=str(out),
+        outfile=str(out),
     )
 
     result = combine.main(args)
@@ -1472,7 +1472,7 @@ def test_unicode_characters_in_metadata_id_raises_error(tmp_path):
     out = tmp_path / "combined.fasta"
     args = MockArgs(
         fasta=[str(fasta_path)],
-        output=str(out),
+        outfile=str(out),
         metadata=[str(metadata_path)],
     )
 
@@ -1496,7 +1496,7 @@ def test_unicode_characters_in_metadata_fields_preserved(tmp_path):
     out = tmp_path / "combined.fasta"
     args = MockArgs(
         fasta=[str(fasta_path)],
-        output=str(out),
+        outfile=str(out),
         metadata=[str(metadata_path)],
     )
 
@@ -1530,7 +1530,7 @@ def test_sequence_id_with_special_delimiter_characters(tmp_path):
     out = tmp_path / "combined.fasta"
     args = MockArgs(
         fasta=[str(fasta_path)],
-        output=str(out),
+        outfile=str(out),
         metadata=[str(metadata_path)],
         metadata_id_field="id",
         seq_id_delimiter="|",
@@ -1553,7 +1553,7 @@ def test_zero_length_sequence(tmp_path):
     out = tmp_path / "combined.fasta"
     args = MockArgs(
         fasta=[str(fasta_path)],
-        output=str(out),
+        outfile=str(out),
     )
 
     result = combine.main(args)
@@ -1576,7 +1576,7 @@ def test_all_sequences_filtered_out(tmp_path):
     out = tmp_path / "combined.fasta"
     args = MockArgs(
         fasta=[str(fasta_path)],
-        output=str(out),
+        outfile=str(out),
         min_length=10,
         max_n_content=0.5,
     )
@@ -1603,7 +1603,7 @@ def test_metadata_id_with_special_characters_error(tmp_path):
     out = tmp_path / "combined.fasta"
     args = MockArgs(
         fasta=[str(fasta_path)],
-        output=str(out),
+        outfile=str(out),
         metadata=[str(metadata_path)],
     )
 
@@ -1627,7 +1627,7 @@ def test_metadata_id_with_unicode_raises_error(tmp_path):
     out = tmp_path / "combined.fasta"
     args = MockArgs(
         fasta=[str(fasta_path)],
-        output=str(out),
+        outfile=str(out),
         metadata=[str(metadata_path)],
     )
 
@@ -1654,7 +1654,7 @@ def test_metadata_id_valid_characters(tmp_path):
     out = tmp_path / "combined.fasta"
     args = MockArgs(
         fasta=[str(fasta_path)],
-        output=str(out),
+        outfile=str(out),
         metadata=[str(metadata_path)],
     )
 

@@ -7,7 +7,7 @@ from raccoon.commands import alignment
 class MockArgs:
     def __init__(self, **kwargs):
         self.alignment = kwargs.get('alignment', 'test.fasta')
-        self.output_dir = kwargs.get('output_dir', '.')
+        self.outdir = kwargs.get('outdir', '.')
         self.genbank = kwargs.get('genbank', None)
         self.reference_id = kwargs.get('reference_id', None)
         self.max_n_content = kwargs.get('max_n_content', 0.2)
@@ -15,12 +15,12 @@ class MockArgs:
         self.cluster_count = kwargs.get('cluster_count', 3)
 
 
-def test_output_directory_creation(tmp_path):
+def test_outdirectory_creation(tmp_path):
     """Test that output directory is created if it doesn't exist."""
-    new_dir = tmp_path / 'new_output_dir'
+    new_dir = tmp_path / 'new_outdir'
     assert not new_dir.exists()
 
-    args = MockArgs(alignment='nonexistent.fasta', output_dir=str(new_dir))
+    args = MockArgs(alignment='nonexistent.fasta', outdir=str(new_dir))
     # will fail due to missing alignment file, but directory should be created first
     result = alignment.main(args)
     
@@ -29,7 +29,7 @@ def test_output_directory_creation(tmp_path):
     assert new_dir.is_dir()
 
 
-def test_output_directory_writable_check(tmp_path):
+def test_outdirectory_writable_check(tmp_path):
     """Test that an error is raised if output directory is not writable."""
     readonly_dir = tmp_path / 'readonly'
     readonly_dir.mkdir()
@@ -37,7 +37,7 @@ def test_output_directory_writable_check(tmp_path):
     # make it read-only
     os.chmod(str(readonly_dir), 0o444)
     
-    args = MockArgs(alignment='nonexistent.fasta', output_dir=str(readonly_dir))
+    args = MockArgs(alignment='nonexistent.fasta', outdir=str(readonly_dir))
     result = alignment.main(args)
     
     # should fail with write permission error
@@ -47,11 +47,11 @@ def test_output_directory_writable_check(tmp_path):
     os.chmod(str(readonly_dir), 0o755)
 
 
-def test_output_directory_defaults_to_cwd(tmp_path, monkeypatch, caplog):
-    """Test that output_dir defaults to current working directory if not provided."""
+def test_outdirectory_defaults_to_cwd(tmp_path, monkeypatch, caplog):
+    """Test that outdir defaults to current working directory if not provided."""
     monkeypatch.chdir(str(tmp_path))
     
-    args = MockArgs(alignment='nonexistent.fasta', output_dir=None)
+    args = MockArgs(alignment='nonexistent.fasta', outdir=None)
     # will fail due to missing alignment, but should use cwd
     result = alignment.main(args)
     

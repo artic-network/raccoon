@@ -46,7 +46,7 @@ raccoon aln-qc <alignment.fasta> -d outdir
 Key options
 
 - `alignment` (positional): path to the input alignment (FASTA)
-- `-d, --output-dir`: directory to write outputs (created if missing)
+- `-d, --outdir`: directory to write outputs (created if missing)
 - `--genbank`: optional GenBank file containing CDS/features for frame-breaking indel checks
 - `--reference-id`: optional sequence id in the GenBank file used as reference mapping
 - `--n-threshold`: fraction of N allowed per sequence before flagged (default: 0.2)
@@ -65,7 +65,7 @@ Mask output
 
 Behavior and exit codes
 
-- The command will try to create `--output-dir` if it does not exist and will verify it is writable.
+- The command will try to create `--outdir` if it does not exist and will verify it is writable.
 - Optional input files (`--genbank`, `--reference-id`) are validated if provided.
 - Exit code `0` on success, `1` on validation/file errors, `2` on unexpected failures.
 
@@ -97,7 +97,7 @@ Key options
 
 - `alignment` (positional): path to the input alignment (FASTA)
 - `--mask-file`: mask CSV from aln-qc
-- `-o, --output`: output masked alignment file name (default: <alignment>.masked.fasta)
+- `-o, --outfile`: output masked alignment file name (default: <alignment>.masked.fasta)
 - `-d, --outdir`: output directory (default: .)
 - `-t, --sequence-type`: sequence type (nt/aa); uses N or X (default: nt)
 
@@ -115,7 +115,7 @@ Key options
 
 - `--phylogeny`: path to Newick tree file
 - `--assembly-refs`: path to assembly/reference FASTA used for mapping
-- `-d, --output-dir`: directory to write outputs (created if missing)
+- `-d, --outdir`: directory to write outputs (created if missing)
 - `--outgroup-ids`: comma-separated list of outgroup sequence ids
 - `--mask-file`: optional mask CSV file with sites to ignore
 - `--height`: plotting height parameter (optional)
@@ -128,7 +128,7 @@ Key options
 
 Behavior and exit codes
 
-- The command validates `--assembly-refs` and optional mask/tree files, and ensures `--output-dir` is writable.
+- The command validates `--assembly-refs` and optional mask/tree files, and ensures `--outdir` is writable.
 - Exit code `0` on success, `1` on validation/file errors, `2` on unexpected failures.
 
 Example
@@ -180,7 +180,7 @@ raccoon seq-qc a.fasta b.fasta -o combined.fasta \
 Key options
 
 - `inputs` (positional): one or more input FASTA files
-- `-o, --output`: output FASTA file (use `-` for stdout)
+- `-o, --outfile`: output FASTA file (use `-` for stdout)
 - `--metadata`: one or more metadata CSVs used to harmonise headers
 - `--metadata-delimiter`: metadata delimiter (default: `,`; auto-detects `.tsv` files)
 - `--metadata-id-field`: metadata id column (default: `id`)

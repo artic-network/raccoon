@@ -41,7 +41,7 @@ class _Args:
         self.alignment = str(alignment_path)
         self.mask_file = str(mask_file)
         self.outdir = str(outdir)
-        self.output = None
+        self.outfile = None
         self.sequence_type = "nt"
         for key, value in overrides.items():
             setattr(self, key, value)

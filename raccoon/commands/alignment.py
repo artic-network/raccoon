@@ -19,7 +19,7 @@ def main(args):
         from raccoon.utils import alignment_functions as af
         from raccoon.utils import io
 
-        outdir = args.output_dir or os.getcwd()
+        outdir = args.outdir or os.getcwd()
         
         # validate output directory
         if not io.ensure_output_directory(outdir):

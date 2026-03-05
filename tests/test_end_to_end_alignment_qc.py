@@ -57,7 +57,7 @@ def _build_alignment(tmp_path):
 class _Args:
     def __init__(self, alignment_path, outdir, genbank_path, **overrides):
         self.alignment = str(alignment_path)
-        self.output_dir = str(outdir)
+        self.outdir = str(outdir)
         self.genbank = str(genbank_path)
         self.reference_id = "ref"
         self.max_n_content = 0.05

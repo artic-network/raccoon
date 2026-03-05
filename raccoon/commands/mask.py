@@ -26,7 +26,7 @@ def main(args):
             if not io.validate_input_file(mask_file, "Mask file"):
                 return 1
 
-            output_path = args.output
+            output_path = args.outfile
             if not output_path:
                 base = os.path.splitext(os.path.basename(alignment_path))[0]
                 output_path = f"{base}.masked.fasta"

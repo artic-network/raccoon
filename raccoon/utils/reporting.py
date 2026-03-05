@@ -724,7 +724,7 @@ def generate_alignment_report(outdir: str, alignment_path: str, mask_file: Optio
         "datafiles": {
             "alignment": os.path.basename(alignment_path),
             "mask_file": os.path.basename(mask_file) if mask_file else "None",
-            "output_dir": os.path.basename(outdir) if outdir else "",
+            "outdir": os.path.basename(outdir) if outdir else "",
         },
         "report_metadata": {
             "generated_stamp": generated_stamp,
@@ -810,7 +810,7 @@ def generate_mask_report(
             "alignment": os.path.basename(alignment_path),
             "mask_file": os.path.basename(mask_file) if mask_file else "None",
             "output_alignment": os.path.basename(output_alignment) if output_alignment else "None",
-            "output_dir": os.path.basename(outdir) if outdir else "",
+            "outdir": os.path.basename(outdir) if outdir else "",
         },
         "report_metadata": {
             "generated_stamp": generated_stamp,
@@ -995,7 +995,7 @@ def generate_phylo_report(outdir: str, treefile: str, flags_csv: Optional[str] =
         "datafiles": {
             "treefile": os.path.basename(treefile),
             "flags_csv": os.path.basename(flags_csv) if flags_csv else "None",
-            "output_dir": os.path.basename(outdir) if outdir else "",
+            "outdir": os.path.basename(outdir) if outdir else "",
         },
         "report_metadata": {
             "generated_stamp": generated_stamp,
