@@ -20,7 +20,7 @@ def test_alignment_sets_func_callable():
 
 def test_phylo_sets_func_callable():
     parser = build_parser()
-    ns = parser.parse_args(['tree-qc', '--phylogeny', 'tree'])
+    ns = parser.parse_args(['tree-qc', '--tree', 'tree'])
     assert callable(ns.func)
 
 
