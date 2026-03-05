@@ -27,11 +27,12 @@
     </div>
 
     <div id="inputs" class="card">
-      <h3>2. Inputs & sequences</h3>
+      <h3>2. Input files</h3>
       {% for row in records_summary %}
         {% set file_block = (seq_details_by_file | selectattr('file', 'equalto', row.file) | list | first) %}
         <details class="file-details">
           <summary>
+            <button type="button" class="expand-button">Expand</button>
             <div class="table-wrap">
               <table>
                 <thead>
@@ -55,7 +56,7 @@
             </div>
           </summary>
           {% if file_block %}
-            <div class="table-wrap">
+            <div class="table-wrap table-scroll">
               <table class="datatable">
                 <thead>
                   <tr><th>ID</th><th>Length</th><th>N content</th><th>Status</th></tr>
@@ -77,53 +78,12 @@
           {% endif %}
         </details>
       {% endfor %}
-    </div>
-
-    <div id="lengths" class="card">
-      <h3>2. Sequence length description</h3>
-      {% if length_plot_html %}
-        {{ length_plot_html | safe }}
-      {% else %}
-        <p>No length data available for plotting.</p>
-      {% endif %}
-      <p class="caption">Distribution of sequence lengths across all input FASTAs.</p>
-    </div>
-
-    <div id="filtered-sequences" class="card">
-      <h3>3. Filtered sequences</h3>
-      {% if filter_failures_table %}
-        <div class="table-wrap">
-          <table class="datatable">
-            <thead>
-              <tr>
-                {% for header in filter_failures_table.headers %}
-                  <th>{{ header }}</th>
-                {% endfor %}
-              </tr>
-            </thead>
-            <tbody>
-              {% for row in filter_failures_table.rows %}
-                <tr>
-                  {% for cell in row %}
-                    <td>{{ cell }}</td>
-                  {% endfor %}
-                </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
-      {% else %}
-        <p>No sequences failed length or N-content filters.</p>
-      {% endif %}
-    </div>
-
-    <div id="metadata" class="card">
-      <h3>4. Metadata</h3>
       <p>{{ metadata_summary }}</p>
       {% if metadata_tables %}
         {% for table in metadata_tables %}
           <details class="metadata-block">
             <summary>
+              <button type="button" class="expand-button">Expand</button>
               <div class="table-wrap">
                 <table>
                   <thead>
@@ -146,7 +106,7 @@
                 </table>
               </div>
             </summary>
-            <div class="table-wrap">
+            <div class="table-wrap table-scroll">
               <table class="datatable">
                 <thead>
                   <tr>
@@ -173,6 +133,44 @@
       {% endif %}
     </div>
 
+    <div id="lengths" class="card">
+      <h3>2. Sequence length description</h3>
+      {% if length_plot_html %}
+        {{ length_plot_html | safe }}
+      {% else %}
+        <p>No length data available for plotting.</p>
+      {% endif %}
+      <p class="caption">Distribution of sequence lengths across all input FASTAs.</p>
+    </div>
+
+    <div id="filtered-sequences" class="card">
+      <h3>3. Filtered sequences</h3>
+      {% if filter_failures_table %}
+        <div class="table-wrap table-scroll">
+          <table class="datatable">
+            <thead>
+              <tr>
+                {% for header in filter_failures_table.headers %}
+                  <th>{{ header }}</th>
+                {% endfor %}
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in filter_failures_table.rows %}
+                <tr>
+                  {% for cell in row %}
+                    <td>{{ cell }}</td>
+                  {% endfor %}
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <p>No sequences failed length or N-content filters.</p>
+      {% endif %}
+    </div>
+
     <div id="dataset" class="card">
       <h3>5. Dataset description</h3>
       <p>Unique locations: {{ summary.locations }}</p>
@@ -187,7 +185,7 @@
 
     <div id="final" class="card">
       <h3>6. Final dataset</h3>
-      <div class="table-wrap">
+      <div class="table-wrap table-scroll">
         <table class="datatable">
           <thead>
             <tr><th>ID</th><th>Length</th><th>N content</th></tr>
@@ -208,7 +206,7 @@
     <div id="metadata-issues" class="card">
       <h3>7. Metadata issues</h3>
       {% if metadata_issues_table %}
-        <div class="table-wrap">
+        <div class="table-wrap table-scroll">
           <table class="datatable">
             <thead>
               <tr>
