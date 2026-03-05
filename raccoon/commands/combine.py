@@ -13,21 +13,21 @@ from raccoon.utils import constants as rc
 
 
 def parse_header_template(template: str) -> Tuple[str, List[str]]:
-    """Parse a header template like '{id}|{location}|{date}' into separator and field names.
+    """Parse a header template like '{sample}|{location}|{date}' into separator and field names.
     
     Args:
         template: Header template string with placeholders like {fieldname}
         
     Returns:
         Tuple of (separator, field_names_list)
-        e.g. ("|", ["id", "location", "date"])
+        e.g. ("|", ["sample", "location", "date"])
     """
     # Find all {field} placeholders
     field_pattern = r'\{(\w+)\}'
     fields = re.findall(field_pattern, template)
     
     if not fields:
-        raise ValueError(f"Header template must contain at least one field placeholder like {{id}}: {template}")
+        raise ValueError(f"Header template must contain at least one field placeholder like {{sample}}: {template}")
     
     # Determine separator by removing field placeholders
     separator = re.sub(field_pattern, '', template)
@@ -46,7 +46,7 @@ def format_header_from_template(
     """Format a header using a template string and field values.
     
     Args:
-        template: Header template like '{id}|{location}|{date}'
+        template: Header template like '{sample}|{location}|{date}'
         field_values: Dictionary mapping field names to their values
         
     Returns:
@@ -196,9 +196,8 @@ def detect_date_field(
     """Try to detect which field is the date field.
     
     Priority:
-    1. If --metadata-date-field was explicitly provided and is not the default value, use that (as long as it exists in metadata columns if provided)
-    2. If --header-fields provided as a template, assume the final field is the date field
-    3. Check if that field exists in metadata columns
+    1. If --header-fields provided as a template, find a field with 'date' in name, or use the last field
+    2. Otherwise use metadata_date_field_arg if provided
     
     Args:
         header_fields_template: The --header-fields argument (or None)
@@ -209,19 +208,29 @@ def detect_date_field(
     Returns:
         The name of the date field to use, or None if no date field
     """
-    # If header_fields_template is provided, assume the last field is the date
-    if header_fields_template is not None and template_field_names:
-        last_field = template_field_names[-1]
-        # Validate the field exists in metadata if columns provided
-        if metadata_columns is not None and last_field not in metadata_columns:
-            return None  # Field doesn't exist, will be caught in validation
-        return last_field
+    date_field = None
     
-    # Otherwise, if metadata_date_field_arg is provided use that (if it exists in metadata columns)
-    if metadata_date_field_arg not in metadata_columns:
-        return None  # Field doesn't exist, will be caught in validation
-    # Otherwise, use the provided metadata_date_field
-    return metadata_date_field_arg
+    # If header_fields_template is provided, find a field with 'date' in the name, or use the last field
+    if header_fields_template is not None and template_field_names:
+        for field_name in template_field_names:
+            if "date" in field_name.lower():
+                date_field = field_name
+                break
+        if not date_field:
+            # No field with 'date' in name, use last field
+            date_field = template_field_names[-1]
+        # Validate the field exists in metadata if columns provided
+        if metadata_columns is not None and date_field not in metadata_columns:
+            return None  # Field doesn't exist, will be caught in validation
+        return date_field
+    
+    # Otherwise, use metadata_date_field_arg if provided
+    if metadata_date_field_arg:
+        if metadata_columns is not None and metadata_date_field_arg not in metadata_columns:
+            return None  # Field doesn't exist
+        return metadata_date_field_arg
+    
+    return None
 
 
 
@@ -254,7 +263,7 @@ def load_metadata_map(metadata_path: str, id_field: str, delimiter: str) -> Opti
             # This happens when there are unescaped delimiters in the data
             actual_field_count = len(row)
             if actual_field_count > expected_field_count:
-                return None, (
+                return None, None, (
                     f"Row {row_num} has {actual_field_count} fields but header has {expected_field_count}. "
                     f"This may indicate unescaped delimiters in the metadata. "
                     f"Please quote fields containing '{delimiter}' characters."
@@ -265,7 +274,7 @@ def load_metadata_map(metadata_path: str, id_field: str, delimiter: str) -> Opti
                 continue
             metadata[key] = row
     
-    return metadata, None
+    return metadata, fieldnames, None
 
 
 
@@ -285,13 +294,16 @@ def load_metadata_maps(metadata_paths: Iterable[str], id_field: str, delimiter: 
         - If error: (None, error_message)
     """
     merged = {}
+    merged_fieldnames = set()
     for path in metadata_paths:
         effective_delimiter = _infer_delimiter(path, delimiter)
-        meta_map, error = load_metadata_map(path, id_field, effective_delimiter)
+        meta_map,fieldnames, error = load_metadata_map(path, id_field, effective_delimiter)
         if error:
-            return None, f"Error in {path}: {error}"
+            return None, None, f"Error in {path}: {error}"
         merged.update(meta_map)
-    return merged, None
+        for i in fieldnames:
+            merged_fieldnames.add(i)
+    return merged, merged_fieldnames, None
 
 
 def format_header(
@@ -361,13 +373,13 @@ def main(args):
         seq_id_field_index = getattr(args, "seq_id_field_index", rc.DEFAULT_ID_FIELD_INDEX)
         min_length = getattr(args, "min_length", None)
         max_n_content = getattr(args, "max_n_content", None)
-        header_fields = getattr(args, "header_fields", None)
+        header_fields_template = getattr(args, "header_fields", None)
         header_separator = getattr(args, "header_separator", rc.DEFAULT_HEADER_SEPARATOR)
 
         # Determine header template and field names
         if header_fields_template is None:
-            # onstruct template from existing parameters
-            header_fields_template = f"{metadata_id_field}{header_separator}{metadata_location_field}{header_separator}{metadata_date_field}"
+            # Construct template from existing parameters - always use "id" as the template field name
+            header_fields_template = f"{{{metadata_id_field}}}{header_separator}{{{metadata_location_field}}}{header_separator}{{{metadata_date_field}}}"
             template_field_names = [metadata_id_field, metadata_location_field, metadata_date_field]
         else:
             # Parse user-provided template
@@ -381,21 +393,20 @@ def main(args):
             for path in metadata_paths:
                 if not io.validate_input_file(path, "Metadata file"):
                     return 1
-            metadata_map, metadata_error = load_metadata_maps(metadata_paths, metadata_id_field, metadata_delimiter)
+            metadata_map, metadata_columns, metadata_error = load_metadata_maps(metadata_paths, metadata_id_field, metadata_delimiter)
             if metadata_error:
                 logging.error(f"Failed to load metadata: {metadata_error}")
                 return 1
-            
+
             # Get available metadata columns from the first row (for validation)
-            metadata_columns = None
             if metadata_map:
-                first_row = next(iter(metadata_map.values()))
-                metadata_columns = list(first_row.keys())
-                
+
                 # If header_fields template is provided, validate all fields exist in metadata
                 if header_fields_template is not None and getattr(args, "header_fields", None) is not None:
                     for field_name in template_field_names:
-                        if field_name != metadata_id_field and field_name not in metadata_columns:
+                        # Skip metadata_id_field - it comes from parsed_id, not metadata
+                        
+                        if field_name not in metadata_columns:
                             # Check for BOM-prefixed field name
                             bom_field = f"\ufeff{field_name}"
                             if bom_field not in metadata_columns:
@@ -456,7 +467,7 @@ def main(args):
                             if not location_value:
                                 metadata_issues.append({
                                     "file": os.path.basename(path),
-                                    metadata_id_field: record.id,
+                                    "id": record.id,
                                     "parsed_id": parsed_id,
                                     "status": status,
                                     "issue": "missing location",
@@ -466,7 +477,7 @@ def main(args):
                             if not date_value:
                                 metadata_issues.append({
                                     "file": os.path.basename(path),
-                                    metadata_id_field: record.id,
+                                    "id": record.id,
                                     "parsed_id": parsed_id,
                                     "status": status,
                                     "issue": "missing date",
@@ -476,7 +487,7 @@ def main(args):
                         else:
                             metadata_issues.append({
                                 "file": os.path.basename(path),
-                                metadata_id_field: record.id,
+                                "id": record.id,
                                 "parsed_id": parsed_id,
                                 "status": status,
                                 "issue": "missing metadata row",
@@ -486,7 +497,7 @@ def main(args):
                     if reasons:
                         filter_failures.append({
                             "file": os.path.basename(path),
-                            metadata_id_field: record.id,
+                            "id": record.id,
                             "parsed_id": parsed_id,
                             "length": seq_len,
                             "n_content": round(n_prop, 4),
@@ -499,10 +510,13 @@ def main(args):
                         row = metadata_map.get(parsed_id)
                         if row:
                             # Build field values dictionary for template formatting
-                            field_values = {metadata_id_field: parsed_id}
+                            # Always use "id" as the field name in the template, regardless of metadata_id_field
+                            field_values = {"id": parsed_id}
+                            
                             for field_name in template_field_names:
-                                if field_name == metadata_id_field:
-                                    continue  # Already added
+                                # Skip "id" field - already added
+                                if field_name == "id":
+                                    continue
                                 
                                 # Get the raw value from metadata
                                 raw_value = get_field(row, field_name)
@@ -515,7 +529,7 @@ def main(args):
                                     field_values[field_name] = raw_value
                             
                             try:
-                                header = format_header_from_template(header_fields_template,metadata_id_field, field_values)
+                                header = format_header_from_template(header_fields_template, "id", field_values)
                             except ValueError as e:
                                 logging.error(f"Failed to format header for {parsed_id}: {str(e)}")
                                 continue
@@ -543,7 +557,7 @@ def main(args):
             with open(metadata_csv, "w", newline="") as handle:
                 writer = csv.DictWriter(
                     handle,
-                    fieldnames=["file", metadata_id_field, "parsed_id", "status", "issue", "location", "date"],
+                    fieldnames=["file", "id", "parsed_id", "status", "issue", "location", "date"],
                     lineterminator="\n",
                 )
                 writer.writeheader()
