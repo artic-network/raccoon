@@ -321,7 +321,7 @@ def run_alignment_qc(
     outdir,
     genbank_path=None,
     reference_id=None,
-    n_threshold=DEFAULT_N_THRESHOLD,
+    max_n_content=DEFAULT_MAX_N_CONTENT,
     n_window=2,
     gap_window=1,
     cluster_window=DEFAULT_CLUSTER_WINDOW,
@@ -338,7 +338,7 @@ def run_alignment_qc(
     aln = read_alignment(alignment_path)
 
     summary = {}
-    flagged_n = find_high_N_sequences(aln, threshold=n_threshold)
+    flagged_n = find_high_N_sequences(aln, threshold=max_n_content)
     summary['high_n_sequences'] = flagged_n
 
     unique_mutations, snps_near_n, snps_near_gap, clustered_snps = analyze_alignment(
