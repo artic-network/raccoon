@@ -34,7 +34,7 @@ def main(args):
             return 1
         
         reference = getattr(args, rc.KEY_REFERENCE_ID, None)
-        n_threshold = getattr(args, rc.KEY_MAX_N_CONTENT, rc.DEFAULT_N_THRESHOLD)
+        max_n_content = getattr(args, rc.KEY_MAX_N_CONTENT, rc.DEFAULT_MAX_N_CONTENT)
         cluster_window = getattr(args, rc.KEY_CLUSTER_WINDOW, rc.DEFAULT_CLUSTER_WINDOW)
         cluster_count = getattr(args, rc.KEY_CLUSTER_COUNT, rc.DEFAULT_CLUSTER_COUNT)
         mask_clustered = getattr(args, rc.KEY_MASK_CLUSTERED, True) 
@@ -47,7 +47,7 @@ def main(args):
             outdir=outdir,
             genbank_path=genbank,
             reference_id=reference,
-            n_threshold=n_threshold,
+            max_n_content=max_n_content,
             cluster_window=cluster_window,
             cluster_count=cluster_count,
             mask_clustered=mask_clustered,
