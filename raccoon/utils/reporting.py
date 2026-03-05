@@ -474,6 +474,8 @@ def generate_combine_report(
 
     context = {
         "summary": {
+            "metadata_file_count": len(metadata_paths) if metadata_paths else 0,
+            "fasta_file_count": len(input_fastas),
             "total_sequences": total_sequences,
             "filtered_count": filtered_count,
             "locations": header_stats.get("locations", 0),
@@ -481,6 +483,7 @@ def generate_combine_report(
             "cmd_line": cmd_line,
             "filters": filter_summary_text,
         },
+        "subtitle": "Combine sequence FASTA file(s) with metadata for sequence header harmonization, with sequence QC filtering of N content and length.",
         "records_summary": records_summary,
         "seq_details_by_file": [
             {"file": fname, "details": details}
@@ -501,6 +504,7 @@ def generate_combine_report(
         },
         "report_metadata": {
             "generated_stamp": generated_stamp,
+            "cmd_line": cmd_line,
             "raccoon_version": raccoon_version,
             "python_version": sys.version.split()[0],
             "platform": f"{platform.system()} {platform.release()}",
@@ -707,6 +711,11 @@ def generate_alignment_report(outdir: str, alignment_path: str, mask_file: Optio
         _apply_plot_style(fig)
         diversity_plot_html = _plot_div(fig)
 
+    cmd_parts = ["raccoon", "aln-qc", os.path.basename(alignment_path)]
+    if mask_file:
+        cmd_parts.extend(["--mask-file", os.path.basename(mask_file)])
+    cmd_line = " ".join(cmd_parts)
+
     outpath = os.path.join(outdir, "aln-qc_report.html")
     context = {
         "summary": {
@@ -715,6 +724,7 @@ def generate_alignment_report(outdir: str, alignment_path: str, mask_file: Optio
             "mean_n_content": round(_safe_mean(n_contents), 4),
             "mean_completeness": round(_safe_mean(completeness), 4),
         },
+        "subtitle": "Alignment quality assessment, with potentially problematic sites and sequences flagged.",
         # "n_blocks_plot_html": n_blocks_plot_html,
         # "has_n_blocks_plot": bool(n_blocks_plot_html),
         "sites_table": sites_table,
@@ -728,6 +738,7 @@ def generate_alignment_report(outdir: str, alignment_path: str, mask_file: Optio
         },
         "report_metadata": {
             "generated_stamp": generated_stamp,
+            "cmd_line": cmd_line,
             "raccoon_version": raccoon_version,
             "python_version": sys.version.split()[0],
             "platform": f"{platform.system()} {platform.release()}",
@@ -795,6 +806,11 @@ def generate_mask_report(
             rows = [[row.get(h, "") for h in headers] for row in site_rows]
             mask_sites_table = {"headers": headers, "rows": rows}
 
+    cmd_parts = ["raccoon", "mask", os.path.basename(alignment_path)]
+    if mask_file:
+        cmd_parts.extend(["--mask-file", os.path.basename(mask_file)])
+    cmd_line = " ".join(cmd_parts)
+
     outpath = os.path.join(outdir, "mask_report.html")
     context = {
         "summary": {
@@ -804,6 +820,7 @@ def generate_mask_report(
             "masked_pct": round(masked_pct, 4),
             "sequences_removed": len(sequences_to_remove),
         },
+        "subtitle": "Masking file application report, summarizing the number and percentage of masked sites, and any sequences removed due to masking.",
         "masked_table": masked_table,
         "mask_sites_table": mask_sites_table,
         "datafiles": {
@@ -814,6 +831,7 @@ def generate_mask_report(
         },
         "report_metadata": {
             "generated_stamp": generated_stamp,
+            "cmd_line": cmd_line,
             "raccoon_version": raccoon_version,
             "python_version": sys.version.split()[0],
             "platform": f"{platform.system()} {platform.release()}",
@@ -979,6 +997,11 @@ def generate_phylo_report(outdir: str, treefile: str, flags_csv: Optional[str] =
         branch_snps_path=branch_snps_path,
     )
 
+    cmd_parts = ["raccoon", "tree-qc", "--phylogeny", os.path.basename(treefile)]
+    if flags_csv:
+        cmd_parts.extend(["--flags", os.path.basename(flags_csv)])
+    cmd_line = " ".join(cmd_parts)
+
     outpath = os.path.join(outdir, "tree-qc_report.html")
     context = {
         "summary": {
@@ -986,6 +1009,7 @@ def generate_phylo_report(outdir: str, treefile: str, flags_csv: Optional[str] =
             "tree_height": getattr(my_tree, "treeHeight", "n/a"),
             "y_span": getattr(my_tree, "ySpan", "n/a"),
         },
+        "subtitle": "Phylogenetic tree quality assessment, with temporal signal evaluation and convergence/reversion flag summaries if ancestral state files available.",
         "tree_plot_html": tree_plot_html,
         "root_to_tip_plot_html": root_to_tip_plot,
         "convergent_table": convergent_table,
@@ -999,6 +1023,7 @@ def generate_phylo_report(outdir: str, treefile: str, flags_csv: Optional[str] =
         },
         "report_metadata": {
             "generated_stamp": generated_stamp,
+            "cmd_line": cmd_line,
             "raccoon_version": raccoon_version,
             "python_version": sys.version.split()[0],
             "platform": f"{platform.system()} {platform.release()}",

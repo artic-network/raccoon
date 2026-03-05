@@ -49,12 +49,32 @@
       {{ raccoon_logo_html | safe }}
       <div>
         <h1>{{ title }}</h1>
+        {% if subtitle %}<p style="font-style:italic; margin: 0.3rem 0 0 0; color: #666;">{{ subtitle }}</p>{% endif %}
         <div class="meta">Generated {{ generated_stamp }}</div>
       </div>
     </div>
     {{ artic_logo_html | safe }}
   </div>
   {% block content %}{% endblock %}
+  {% block datafiles_and_metadata %}
+    <div class="card">
+      <h3>Datafiles</h3>
+      {% if datafiles %}
+        {% for key, value in datafiles.items() %}
+          <p>{{ key | replace('_', ' ') | title }}: {{ value }}</p>
+        {% endfor %}
+      {% endif %}
+    </div>
+
+    <div id="report-metadata" class="card">
+      <h3>Report metadata</h3>
+      {% if report_metadata.cmd_line %}<p>Command: <code>{{ report_metadata.cmd_line }}</code></p>{% endif %}
+      {% if report_metadata.generated_stamp %}<p>Generated: {{ report_metadata.generated_stamp }}</p>{% endif %}
+      {% if report_metadata.raccoon_version %}<p>Raccoon version: {{ report_metadata.raccoon_version }}</p>{% endif %}
+      {% if report_metadata.python_version %}<p>Python: {{ report_metadata.python_version }}</p>{% endif %}
+      {% if report_metadata.platform %}<p>Platform: {{ report_metadata.platform }}</p>{% endif %}
+    </div>
+  {% endblock %}
   <div class="footer">
     <div><strong>Raccoon</strong> — Rigorous Alignment Curation: Cleanup Of Outliers and Noise</div>
     <div>Author: Áine O'Toole</div>

@@ -147,20 +147,5 @@
       <h3>7. Flagged mutation types</h3>
       {{ mutation_types_plot_html | safe }}
     </div> -->
-
-    <div class="card">
-      <h3>Datafiles</h3>
-      <p>Treefile: {{ datafiles.treefile }}</p>
-      <p>Flags CSV: {{ datafiles.flags_csv }}</p>
-      <p>Output directory: {{ datafiles.output_dir }}</p>
-    </div>
-
-    <div id="report-metadata" class="card">
-      <h3>Report metadata</h3>
-      <p>Generated: {{ report_metadata.generated_stamp }}</p>
-      <p>Raccoon version: {{ report_metadata.raccoon_version }}</p>
-      <p>Python: {{ report_metadata.python_version }}</p>
-      <p>Platform: {{ report_metadata.platform }}</p>
-    </div>
   </div>
 {% endblock %}

@@ -4,7 +4,7 @@
     <div class="toc card">
       <h3>Table of contents</h3>
       <ol>
-        <li><a href="#summary">Summary</a></li>
+        <li><a href="#summary">Report Summary</a></li>
         <li><a href="#n-blocks">Alignment N-content</a></li>
         <li><a href="#reported">Flagged sites</a></li>
         <li><a href="#sequence-removals">Sequence removals</a></li>
@@ -14,7 +14,7 @@
     </div>
 
     <div id="summary" class="card">
-      <h3>1. Summary</h3>
+      <h3>1. Report Summary</h3>
       <p>Sequences: {{ summary.sequences }}</p>
       <p>Alignment length: {{ summary.alignment_length }}</p>
       <p>Mean N content: {{ summary.mean_n_content }}</p>
@@ -138,21 +138,6 @@
       {% else %}
         <p>No diversity plot available.</p>
       {% endif %}
-    </div>
-
-    <div class="card">
-      <h3>Datafiles</h3>
-      <p>Input alignment: {{ datafiles.alignment }}</p>
-      <p>Mask file: {{ datafiles.mask_file }}</p>
-      <p>Output directory: {{ datafiles.output_dir }}</p>
-    </div>
-
-    <div id="report-metadata" class="card">
-      <h3>Report metadata</h3>
-      <p>Generated: {{ report_metadata.generated_stamp }}</p>
-      <p>Raccoon version: {{ report_metadata.raccoon_version }}</p>
-      <p>Python: {{ report_metadata.python_version }}</p>
-      <p>Platform: {{ report_metadata.platform }}</p>
     </div>
   </div>
 {% endblock %}

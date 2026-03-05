@@ -74,21 +74,5 @@
         <p>No mask file entries available.</p>
       {% endif %}
     </div>
-
-    <div class="card">
-      <h3>Datafiles</h3>
-      <p>Input alignment: {{ datafiles.alignment }}</p>
-      <p>Mask file: {{ datafiles.mask_file }}</p>
-      <p>Output alignment: {{ datafiles.output_alignment }}</p>
-      <p>Output directory: {{ datafiles.output_dir }}</p>
-    </div>
-
-    <div id="report-metadata" class="card">
-      <h3>Report metadata</h3>
-      <p>Generated: {{ report_metadata.generated_stamp }}</p>
-      <p>Raccoon version: {{ report_metadata.raccoon_version }}</p>
-      <p>Python: {{ report_metadata.python_version }}</p>
-      <p>Platform: {{ report_metadata.platform }}</p>
-    </div>
   </div>
 {% endblock %}

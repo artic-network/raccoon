@@ -16,17 +16,18 @@
     </div>
 
     <div id="summary" class="card">
-      <h3>Summary</h3>
+      <h3>1. Report Summary</h3>
+      <p>FASTA files: {{ summary.fasta_file_count }}</p>
+      <p>Metadata files: {{ summary.metadata_file_count }}</p>
       <p>Total sequences: {{ summary.total_sequences }}</p>
+      <p>Filters: {{ summary.filters }}</p>
       <p>Filtered: {{ summary.filtered_count }}</p>
       <p>Unique locations: {{ summary.locations }}</p>
       <p>Date range: {{ summary.date_range }}</p>
-      <p>Command: <code>{{ summary.cmd_line }}</code></p>
-      <p>Filters: {{ summary.filters }}</p>
     </div>
 
     <div id="inputs" class="card">
-      <h3>1. Inputs & sequences</h3>
+      <h3>2. Inputs & sequences</h3>
       {% for row in records_summary %}
         {% set file_block = (seq_details_by_file | selectattr('file', 'equalto', row.file) | list | first) %}
         <details class="file-details">
@@ -230,21 +231,6 @@
       {% else %}
         <p>No metadata issues detected.</p>
       {% endif %}
-    </div>
-
-    <div class="card">
-      <h3>Datafiles</h3>
-      <p>Inputs: {{ datafiles.inputs }}</p>
-      <p>Metadata: {{ datafiles.metadata }}</p>
-      <p>Output: {{ datafiles.output }}</p>
-    </div>
-
-    <div id="report-metadata" class="card">
-      <h3>Report metadata</h3>
-      <p>Generated: {{ report_metadata.generated_stamp }}</p>
-      <p>Raccoon version: {{ report_metadata.raccoon_version }}</p>
-      <p>Python: {{ report_metadata.python_version }}</p>
-      <p>Platform: {{ report_metadata.platform }}</p>
     </div>
   </div>
 {% endblock %}
