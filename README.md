@@ -93,15 +93,17 @@ Key alignment options:
 Sequence QC:
 
 ```bash
-raccoon seq-qc a.fasta b.fasta -o combined.fasta
+raccoon seq-qc -f a.fasta b.fasta -o combined.fasta
 ```
 
 With metadata-driven headers:
 
 ```bash
-raccoon seq-qc a.fasta b.fasta -o combined.fasta \
-  --metadata metadata.csv other_metadata.csv --metadata-id-field id \
-  --metadata-location-field location --metadata-date-field date \
+raccoon seq-qc -f a.fasta b.fasta -o combined.fasta \
+  -m metadata.csv other_metadata.csv \
+  --metadata-id-field sample \
+  --metadata-location-field location \
+  --metadata-date-field date \
   --header-separator '|'
 ```
 
@@ -109,48 +111,52 @@ With custom header template:
 
 ```bash
 # Custom field order and custom fields
-raccoon seq-qc a.fasta b.fasta -o combined.fasta \
-  --metadata metadata.csv --header-fields "{id}|{country}|{date}"
+raccoon seq-qc -f a.fasta b.fasta -o combined.fasta \
+  -m metadata.csv --header-fields "{sample}|{country}|{date}"
 
 # Multiple location levels
-raccoon seq-qc a.fasta b.fasta -o combined.fasta \
-  --metadata metadata.csv --header-fields "{id}|{region}|{country}|{date}"
+raccoon seq-qc -f a.fasta b.fasta -o combined.fasta \
+  -m metadata.csv --header-fields "{sample}|{region}|{country}|{date}"
 
 # Custom separator
-raccoon seq-qc a.fasta b.fasta -o combined.fasta \
-  --metadata metadata.csv --header-fields "{id}_{location}_{date}"
+raccoon seq-qc -f a.fasta b.fasta -o combined.fasta \
+  -m metadata.csv --header-fields "{sample}_{location}_{date}"
 ```
 
 **Header field details:**
 
-- `--header-fields` uses a template format: `{field1}|{field2}|{field3}` where field names come from your metadata CSV columns
-- Field values are automatically **sanitized** for safe use in phylogenetic tools (Newick parsers):
-  - Converted to **lowercase**
-  - Spaces, commas, colons, semi-colons, and parentheses are replaced with underscores
-  - Hyphens and pipes are preserved (safe for Newick parsers)
-  - ISO dates (YYYY-MM-DD) are not further sanitized
+- `--header-fields` uses a template format with special field names:
+  - `{id}`: the sequence ID (parsed from header using `--seq-id-field-index` and `--seq-id-delimiter`)
+  - Other fields come from your metadata CSV columns (e.g., `{location}`, `{date}`, `{country}`)
+  - Example template: `{id}|{country}|{date}`
+- Field values are automatically **sanitised** for safe use in phylogenetic tools (Newick parsers):
+  - **ID field**: preserved as-is (case-sensitive, not modified)
+  - **Other fields**: converted to **lowercase**, spaces/commas/colons/semicolons/parentheses replaced with underscores
   - Multiple consecutive underscores are collapsed to single underscores
+  - ISO dates (YYYY-MM-DD) are not further sanitised
+  - Raccoon attempts to convert various date formats to ISO format, and reports ambiguous dates if not successful
   - Example: `"New York, USA"` → `"new_york_usa"`, `"January 15, 2024"` → `"2024-01-15"`
 - When `--header-fields` is provided, it **takes precedence** over `--metadata-location-field` and `--metadata-date-field` arguments
 - Missing fields in metadata are output as empty values (e.g., `seq1||2024-01-01` if location is missing), allowing the pipeline to continue with issues logged to `seq_qc_metadata_issues.csv`
-- The special field `{id}` always maps to the parsed sequence ID (after `--id-field` extraction)
+- The special field `{parsed_id}` always maps to the parsed sequence ID (after `--seq-id-field-index` extraction)
 - **CSV parsing note**: Metadata fields containing delimiters (commas) must be properly quoted. If unescaped delimiters are detected, raccoon will exit with an informative error suggesting field quoting (e.g., `"New York, USA"` instead of `New York, USA`)
 
 
-**Backward compatibility:**
-- Default behavior (no `--header-fields`) still works: `{id}|{location}|{date}` format
+**Default behavior:**
+- Default header template (no `--header-fields` specified): `{id}|{location}|{date}`
+- Default metadata ID column (no `--metadata-id-field` specified): `sample` (for backward compatibility with older metadata files)
 - Existing `--metadata-location-field` and `--metadata-date-field` args are respected when `--header-fields` is not provided
 
 Key sequence QC options:
 
-- `--metadata`: metadata CSV file(s) for header harmonization
-- `--metadata-id-field`: CSV column to match with sequence IDs (default: id)
+- `-m`,`--metadata`: metadata CSV file(s) for header harmonization
+- `--metadata-delimiter`: delimiter used in metadata CSV files (default: auto-detect)
+- `--metadata-id-field`: CSV column to match with sequence IDs (default: sample)
 - `--header-fields`: template for custom header format (e.g., `{id}|{country}|{date}`)
 - `--metadata-location-field`: CSV column for location (default: location; overridden by `--header-fields`)
 - `--metadata-date-field`: CSV column for date (default: date; overridden by `--header-fields`)
-- `--header-separator`: separator between header fields (default: |; ignored if `--header-fields` is used)
-- `--id-delimiter`: delimiter for parsing IDs from input headers (default: |)
-- `--id-field`: 0-based field index for ID extraction (default: 0)
+- `--seq-id-delimiter`: delimiter for parsing IDs from input headers (default: |)
+- `--seq-id-field-index`: 0-based field index for ID extraction (default: 0)
 - `--min-length`: minimum sequence length to keep
 - `--max-n-content`: maximum N content proportion to keep (e.g., 0.1 for 10%)
 
