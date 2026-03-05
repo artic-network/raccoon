@@ -161,6 +161,20 @@ Key sequence QC options:
 - `--max-n-content`: maximum N content proportion to keep (e.g., 0.1 for 10%)
 
 
+Mask alignment:
+
+```bash
+raccoon mask <alignment.fasta> --mask-file results/alignment_qc/mask_sites.csv -d results/alignment_qc
+```
+
+Key mask options:
+
+- `-o,--outfile`: output masked alignment file name
+- `-d,--outdir`: output directory (default: current directory)
+- `--mask-file`: mask CSV file from aln-qc
+- `-t,--sequence-type`: sequence type (nt/aa; default: nt)
+
+
 Phylogenetic QC:
 
 ```bash
@@ -171,15 +185,9 @@ raccoon tree-qc --phylogeny <treefile> -d outdir \
 
 Key phylo options:
 
-- `--phylogeny`: tree file (Newick or Nexus)
-- `--alignment`: alignment used for ASR state parsing
-- `--asr-state`: ASR state file (defaults to `<treefile>.state` if present)
-- `--tree-format`: auto/newick/nexus
-- `--run-adar`: enable ADAR-like edit flagging
-- `--run-apobec`: enable APOBEC3-like edit flagging
-- `--adar-window`: max distance (bp) for ADAR clustering (default: 300)
-- `--adar-min-count`: min ADAR sites in window to flag a branch (default: 3)
-- `--long-branch-sd`: std dev threshold for long-branch flagging (default: 3.0)
+- `--assembly-refs`: assembly/reference FASTA used for mapping
+- `--outgroup-ids`: comma-separated outgroup sequence IDs
+- `--mask-file`: optional mask CSV file with sites to ignore
 ```
 
 See full CLI details in [docs/cli.md](docs/cli.md).
