@@ -1,4 +1,4 @@
-id,location,date,host
+sample,location,date,host
 A001,SiteA,2024-01-15,human
 A002,SiteA,2024-01-20,human
 A003,SiteC,2024-02-01,human

@@ -26,5 +26,5 @@ def test_phylo_sets_func_callable():
 
 def test_combine_sets_func_callable():
     parser = build_parser()
-    ns = parser.parse_args(['seq-qc', 'a.fasta'])
+    ns = parser.parse_args(['seq-qc','--fasta', 'a.fasta'])
     assert callable(ns.func)

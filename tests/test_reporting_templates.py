@@ -31,7 +31,7 @@ def test_generate_combine_report_renders_template(tmp_path: Path) -> None:
     metadata_csv = tmp_path / "metadata.csv"
     with metadata_csv.open("w", newline="") as handle:
         writer = csv.writer(handle)
-        writer.writerow(["id", "location", "date"])
+        writer.writerow(["sample", "location", "date"])
         writer.writerow(["seqA", "Loc1", "2024-01-01"])
         writer.writerow(["seqB", "Loc2", "2024-01-02"])
 

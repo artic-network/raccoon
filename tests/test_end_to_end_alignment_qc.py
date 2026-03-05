@@ -60,7 +60,7 @@ class _Args:
         self.output_dir = str(outdir)
         self.genbank = str(genbank_path)
         self.reference_id = "ref"
-        self.n_threshold = 0.05
+        self.max_n_content = 0.05
         self.cluster_window = 10
         self.cluster_count = 3
         self.mask_clustered = True
