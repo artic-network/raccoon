@@ -4,12 +4,11 @@
     <div class="toc card">
       <h3>Table of contents</h3>
       <ol>
-        <li><a href="#summary">Summary</a></li>
-        <li><a href="#inputs">Inputs & sequences</a></li>
+        <li><a href="#summary">Report Summary</a></li>
+        <li><a href="#inputs">Input files</a></li>
+        <li><a href="#lengths">Sequence length distribution</a></li>
+        <li><a href="#dataset">Metadata description</a></li>
         <li><a href="#filtered-sequences">Filtered sequences</a></li>
-        <li><a href="#lengths">Sequence length description</a></li>
-        <li><a href="#metadata">Metadata</a></li>
-        <li><a href="#dataset">Dataset description</a></li>
         <li><a href="#final">Final IDs</a></li>
         <li><a href="#report-metadata">Report metadata</a></li>
       </ol>
@@ -134,7 +133,7 @@
     </div>
 
     <div id="lengths" class="card">
-      <h3>2. Sequence length description</h3>
+      <h3>3. Sequence length distribution</h3>
       {% if length_plot_html %}
         {{ length_plot_html | safe }}
       {% else %}
@@ -143,8 +142,21 @@
       <p class="caption">Distribution of sequence lengths across all input FASTAs.</p>
     </div>
 
+
+    <div id="dataset" class="card">
+      <h3>4. Metadata description</h3>
+      <p>Unique locations: {{ summary.locations }}</p>
+      <p>Date range: {{ summary.date_range }}</p>
+      {% if dataset_plot_html %}
+        {{ dataset_plot_html | safe }}
+      {% else %}
+        <p>No date/location data available for plotting.</p>
+      {% endif %}
+      <p class="caption">Sampling timeline by location.</p>
+    </div>
+
     <div id="filtered-sequences" class="card">
-      <h3>3. Filtered sequences</h3>
+      <h3>5. Filtered sequences</h3>
       {% if filter_failures_table %}
         <div class="table-wrap table-scroll">
           <table class="datatable">
@@ -169,18 +181,6 @@
       {% else %}
         <p>No sequences failed length or N-content filters.</p>
       {% endif %}
-    </div>
-
-    <div id="dataset" class="card">
-      <h3>5. Dataset description</h3>
-      <p>Unique locations: {{ summary.locations }}</p>
-      <p>Date range: {{ summary.date_range }}</p>
-      {% if dataset_plot_html %}
-        {{ dataset_plot_html | safe }}
-      {% else %}
-        <p>No date/location data available for plotting.</p>
-      {% endif %}
-      <p class="caption">Sampling timeline by location.</p>
     </div>
 
     <div id="final" class="card">
