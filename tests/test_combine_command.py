@@ -1121,3 +1121,445 @@ def test_sanitization_special_chars_to_underscores(tmp_path):
     lines = out.read_text().strip().splitlines()
     # Special chars should be converted to underscores, but hyphens in dates preserved
     assert lines[0] == ">seq1|new_york_usa_region_northeast|2024-01-15"
+
+
+# ============================================================================
+# NEW EDGE CASE TESTS - Additional coverage for missing scenarios
+# ============================================================================
+
+
+def test_min_length_filtering(tmp_path):
+    """Test --min-length filtering excludes short sequences."""
+    fasta_path = tmp_path / "a.fasta"
+    _write_fasta(fasta_path, [
+        ("seq1", "acgtacgtacgt"),  # 12 bp
+        ("seq2", "acgt"),           # 4 bp
+        ("seq3", "acgtacgt"),       # 8 bp
+    ])
+
+    out = tmp_path / "combined.fasta"
+    args = MockArgs(
+        fasta=[str(fasta_path)],
+        output=str(out),
+        min_length=10,  # Only keep sequences >= 10 bp
+    )
+
+    result = combine.main(args)
+    assert result == 0
+
+    lines = out.read_text().strip().splitlines()
+    # Should only have seq1
+    assert ">seq1" in lines
+    assert ">seq2" not in lines  # 4 bp < 10 bp
+    assert ">seq3" not in lines  # 8 bp < 10 bp
+
+
+def test_max_n_content_filtering(tmp_path):
+    """Test --max-n-content filtering excludes sequences with too many Ns."""
+    fasta_path = tmp_path / "a.fasta"
+    _write_fasta(fasta_path, [
+        ("seq1", "acgtacgtacgt"),      # 0% N
+        ("seq2", "nnnnnnnnacgt"),       # 80% N (8 of 10)
+        ("seq3", "acgtnacgtnacgt"),     # 20% N (2 of 10)
+    ])
+
+    out = tmp_path / "combined.fasta"
+    args = MockArgs(
+        fasta=[str(fasta_path)],
+        output=str(out),
+        max_n_content=0.5,  # Only keep sequences with <= 50% N
+    )
+
+    result = combine.main(args)
+    assert result == 0
+
+    lines = out.read_text().strip().splitlines()
+    # Should have seq1 and seq3, but not seq2
+    assert ">seq1" in lines
+    assert ">seq2" not in lines  # 80% N > 50%
+    assert ">seq3" in lines      # 20% N <= 50%
+
+
+def test_min_length_and_max_n_content_combined(tmp_path):
+    """Test that both length and N-content filters work together."""
+    fasta_path = tmp_path / "a.fasta"
+    _write_fasta(fasta_path, [
+        ("seq1", "acgtacgtacgtacgt"),      # 16 bp, 0% N - KEEP
+        ("seq2", "acgt"),                  # 4 bp, 0% N - filtered by length
+        ("seq3", "nnnnnnnnnnnnnnactivgt"),  # ~80% N - filtered by N-content
+        ("seq4", "acgtnacgt"),             # 8 bp, 12.5% N - filtered by length
+    ])
+
+    out = tmp_path / "combined.fasta"
+    args = MockArgs(
+        fasta=[str(fasta_path)],
+        output=str(out),
+        min_length=10,
+        max_n_content=0.5,
+    )
+
+    result = combine.main(args)
+    assert result == 0
+
+    lines = out.read_text().strip().splitlines()
+    assert ">seq1" in lines
+    assert ">seq2" not in lines
+    assert ">seq3" not in lines
+    assert ">seq4" not in lines
+
+
+def test_id_not_in_metadata_is_included_with_empty_values(tmp_path):
+    """Test that sequences with IDs not in metadata are included with empty field values."""
+    fasta_path = tmp_path / "a.fasta"
+    _write_fasta(fasta_path, [
+        ("seq1", "acgt"),
+        ("seq2", "gggg"),  # Not in metadata
+        ("seq3", "tttt"),
+    ])
+
+    metadata_path = tmp_path / "meta.csv"
+    metadata_path.write_text(
+        textwrap.dedent(
+            """\
+            sample,location,date
+            seq1,UK,2024-01-01
+            seq3,US,2024-01-15
+            """
+        )
+    )
+
+    out = tmp_path / "combined.fasta"
+    metadata_issues = tmp_path / "seq_qc_metadata_issues.csv"
+    args = MockArgs(
+        fasta=[str(fasta_path)],
+        output=str(out),
+        metadata=[str(metadata_path)],
+    )
+
+    result = combine.main(args)
+    assert result == 0
+
+    lines = out.read_text().strip().splitlines()
+    # seq2 should have empty location and date fields
+    assert ">seq2||" in lines
+
+
+def test_duplicate_ids_in_metadata_uses_first_match(tmp_path):
+    """Test that when multiple metadata rows have the same ID, the first match is used."""
+    fasta_path = tmp_path / "a.fasta"
+    _write_fasta(fasta_path, [("seq1", "acgt")])
+
+    metadata_path = tmp_path / "meta.csv"
+    metadata_path.write_text(
+        textwrap.dedent(
+            """\
+            sample,location,date
+            seq1,UK,2024-01-01
+            seq1,US,2024-02-01
+            """
+        )
+    )
+
+    out = tmp_path / "combined.fasta"
+    args = MockArgs(
+        fasta=[str(fasta_path)],
+        output=str(out),
+        metadata=[str(metadata_path)],
+    )
+
+    result = combine.main(args)
+    assert result == 0
+
+    lines = out.read_text().strip().splitlines()
+    # Should use first match (UK, not US)
+    assert lines[0] == ">seq1|uk|2024-01-01"
+
+
+def test_case_sensitivity_in_id_matching(tmp_path):
+    """Test that ID matching is case-sensitive by default."""
+    fasta_path = tmp_path / "a.fasta"
+    _write_fasta(fasta_path, [
+        ("seq1", "acgt"),    # lowercase
+        ("SEQ2", "gggg"),    # uppercase
+    ])
+
+    metadata_path = tmp_path / "meta.csv"
+    metadata_path.write_text(
+        textwrap.dedent(
+            """\
+            sample,location,date
+            seq1,UK,2024-01-01
+            seq2,US,2024-01-02
+            """
+        )
+    )
+
+    out = tmp_path / "combined.fasta"
+    args = MockArgs(
+        fasta=[str(fasta_path)],
+        output=str(out),
+        metadata=[str(metadata_path)],
+    )
+
+    result = combine.main(args)
+    assert result == 0
+
+    lines = out.read_text().strip().splitlines()
+    # seq1 matches (case-sensitive), SEQ2 doesn't match seq2
+    assert lines[0] == ">seq1|uk|2024-01-01"
+    # SEQ2 should have empty fields since it doesn't match seq2
+    assert lines[2] == ">seq2||"
+
+
+def test_whitespace_in_headers_preserved(tmp_path):
+    """Test handling of whitespace in FASTA headers."""
+    fasta_path = tmp_path / "a.fasta"
+    # FASTA headers with leading/trailing whitespace
+    fasta_path.write_text(">  seq1  \nacgt\n")
+
+    out = tmp_path / "combined.fasta"
+    args = MockArgs(
+        fasta=[str(fasta_path)],
+        output=str(out),
+    )
+
+    result = combine.main(args)
+    assert result == 0
+
+    lines = out.read_text().strip().splitlines()
+    # Whitespace should be preserved in the header value
+    assert ">  seq1  " in lines
+
+
+def test_whitespace_in_metadata_values(tmp_path):
+    """Test that leading/trailing whitespace in metadata is handled."""
+    fasta_path = tmp_path / "a.fasta"
+    _write_fasta(fasta_path, [("seq1", "acgt")])
+
+    metadata_path = tmp_path / "meta.csv"
+    # Metadata with whitespace (CSV parser should handle this)
+    metadata_path.write_text(
+        'sample,location,date\nseq1," UK ",2024-01-01\n'
+    )
+
+    out = tmp_path / "combined.fasta"
+    args = MockArgs(
+        fasta=[str(fasta_path)],
+        output=str(out),
+        metadata=[str(metadata_path)],
+    )
+
+    result = combine.main(args)
+    assert result == 0
+
+    lines = out.read_text().strip().splitlines()
+    # Whitespace around value should be stripped by CSV parser, then sanitized
+    assert lines[0] == ">seq1|uk|2024-01-01"
+
+
+def test_missing_metadata_id_column(tmp_path):
+    """Test error handling when metadata file doesn't have the specified ID column."""
+    fasta_path = tmp_path / "a.fasta"
+    _write_fasta(fasta_path, [("seq1", "acgt")])
+
+    metadata_path = tmp_path / "meta.csv"
+    metadata_path.write_text(
+        textwrap.dedent(
+            """\
+            id,location,date
+            seq1,UK,2024-01-01
+            """
+        )
+    )
+
+    out = tmp_path / "combined.fasta"
+    args = MockArgs(
+        fasta=[str(fasta_path)],
+        output=str(out),
+        metadata=[str(metadata_path)],
+        metadata_id_field="sample",  # Asking for 'sample' column which doesn't exist
+    )
+
+    result = combine.main(args)
+    # Should error because 'sample' column not found
+    assert result == 1
+
+
+def test_empty_fasta_file(tmp_path):
+    """Test handling of empty FASTA file."""
+    fasta_path = tmp_path / "empty.fasta"
+    fasta_path.write_text("")
+
+    out = tmp_path / "combined.fasta"
+    args = MockArgs(
+        fasta=[str(fasta_path)],
+        output=str(out),
+    )
+
+    result = combine.main(args)
+    assert result == 0
+
+    # Output should be empty
+    assert out.read_text() == ""
+
+
+def test_single_sequence(tmp_path):
+    """Test combining with just a single sequence."""
+    fasta_path = tmp_path / "a.fasta"
+    _write_fasta(fasta_path, [("seq1", "acgtacgt")])
+
+    metadata_path = tmp_path / "meta.csv"
+    metadata_path.write_text(
+        textwrap.dedent(
+            """\
+            sample,location,date
+            seq1,UK,2024-01-01
+            """
+        )
+    )
+
+    out = tmp_path / "combined.fasta"
+    args = MockArgs(
+        fasta=[str(fasta_path)],
+        output=str(out),
+        metadata=[str(metadata_path)],
+    )
+
+    result = combine.main(args)
+    assert result == 0
+
+    lines = out.read_text().strip().splitlines()
+    assert len(lines) == 2
+    assert lines[0] == ">seq1|uk|2024-01-01"
+    assert lines[1] == "ACGTACGT"
+
+
+def test_duplicate_sequence_ids_in_same_file(tmp_path):
+    """Test handling of duplicate sequence IDs within a single input file."""
+    fasta_path = tmp_path / "a.fasta"
+    _write_fasta(fasta_path, [
+        ("seq1", "acgt"),
+        ("seq1", "gggg"),  # Duplicate ID
+        ("seq2", "tttt"),
+    ])
+
+    out = tmp_path / "combined.fasta"
+    args = MockArgs(
+        fasta=[str(fasta_path)],
+        output=str(out),
+    )
+
+    result = combine.main(args)
+    assert result == 0
+
+    lines = out.read_text().strip().splitlines()
+    # Both seq1 entries should be included
+    header_count = sum(1 for line in lines if line.startswith(">"))
+    assert header_count == 3
+
+
+def test_unicode_characters_in_metadata(tmp_path):
+    """Test handling of Unicode characters in metadata fields."""
+    fasta_path = tmp_path / "a.fasta"
+    _write_fasta(fasta_path, [("seq1", "acgt")])
+
+    metadata_path = tmp_path / "meta.csv"
+    metadata_path.write_text(
+        'sample,location,date\nseq1,São Paulo,2024-01-01\n',
+        encoding='utf-8'
+    )
+
+    out = tmp_path / "combined.fasta"
+    args = MockArgs(
+        fasta=[str(fasta_path)],
+        output=str(out),
+        metadata=[str(metadata_path)],
+    )
+
+    result = combine.main(args)
+    assert result == 0
+
+    lines = out.read_text().strip().splitlines()
+    # Unicode characters should be replaced during sanitization
+    assert lines[0] == ">seq1|s_o_paulo|2024-01-01"
+
+
+def test_sequence_id_with_special_delimiter_characters(tmp_path):
+    """Test parsing sequence IDs when header contains the delimiter character."""
+    fasta_path = tmp_path / "a.fasta"
+    _write_fasta(fasta_path, [
+        ("sample1|extra|info", "acgt"),  # Header with pipes
+        ("sample2|data", "gggg"),
+    ])
+
+    metadata_path = tmp_path / "meta.csv"
+    metadata_path.write_text(
+        textwrap.dedent(
+            """\
+            id,location,date
+            sample1,UK,2024-01-01
+            sample2,US,2024-01-02
+            """
+        )
+    )
+
+    out = tmp_path / "combined.fasta"
+    args = MockArgs(
+        fasta=[str(fasta_path)],
+        output=str(out),
+        metadata=[str(metadata_path)],
+        metadata_id_field="id",
+        seq_id_delimiter="|",
+        seq_id_field_index=0,  # Take first field
+    )
+
+    result = combine.main(args)
+    assert result == 0
+
+    lines = out.read_text().strip().splitlines()
+    assert lines[0] == ">sample1|uk|2024-01-01"
+    assert lines[2] == ">sample2|us|2024-01-02"
+
+
+def test_zero_length_sequence(tmp_path):
+    """Test handling of zero-length sequences."""
+    fasta_path = tmp_path / "a.fasta"
+    fasta_path.write_text(">seq1\n>seq2\nacgt\n")  # seq1 has no sequence data
+
+    out = tmp_path / "combined.fasta"
+    args = MockArgs(
+        fasta=[str(fasta_path)],
+        output=str(out),
+    )
+
+    result = combine.main(args)
+    assert result == 0
+
+    lines = out.read_text().strip().splitlines()
+    # Should include both sequences, even empty one
+    assert ">seq1" in lines
+    assert ">seq2" in lines
+
+
+def test_all_sequences_filtered_out(tmp_path):
+    """Test behavior when all sequences are filtered by length/N-content."""
+    fasta_path = tmp_path / "a.fasta"
+    _write_fasta(fasta_path, [
+        ("seq1", "acgt"),      # 4 bp
+        ("seq2", "nnnnnnnn"),  # 100% N
+    ])
+
+    out = tmp_path / "combined.fasta"
+    args = MockArgs(
+        fasta=[str(fasta_path)],
+        output=str(out),
+        min_length=10,
+        max_n_content=0.5,
+    )
+
+    result = combine.main(args)
+    assert result == 0
+
+    # Output file should be empty or just have headers
+    content = out.read_text().strip()
+    assert content == "" or content.count(">") == 0
