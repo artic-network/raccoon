@@ -10,7 +10,7 @@ class MockArgs:
         self.output_dir = kwargs.get('output_dir', '.')
         self.genbank = kwargs.get('genbank', None)
         self.reference_id = kwargs.get('reference_id', None)
-        self.n_threshold = kwargs.get('n_threshold', 0.2)
+        self.max_n_content = kwargs.get('max_n_content', 0.2)
         self.cluster_window = kwargs.get('cluster_window', 10)
         self.cluster_count = kwargs.get('cluster_count', 3)
 
