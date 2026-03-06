@@ -24,48 +24,17 @@
     <div id="n-blocks" class="card">
       <h3>2. Alignment N-content</h3>
       {% if n_blocks_plot_html %}
+        <p class="caption">Purple blocks represent N positions (ambiguous nucleotides) along the alignment for each sequence.</p>
+      {% if n_blocks_plot_note %}
+          <p class="caption">{{ n_blocks_plot_note }}</p>
         {{ n_blocks_plot_html | safe }}
+        
+        {% endif %}
       {% else %}
         <p>No alignment data available for plotting.</p>
       {% endif %}
-      <p class="caption">Grey blocks represent N positions along the alignment for each sequence.</p>
+      
     </div>
-    {% if has_n_blocks_plot %}
-      <script>
-        (function () {
-          var plot = document.getElementById('n-blocks-plot');
-          if (!plot || !window.Plotly) return;
-          function applyLabels(range) {
-            var show = false;
-            if (range && range[0] !== undefined && range[1] !== undefined) {
-              show = (range[1] - range[0]) <= 100;
-            }
-            var template = show ? "%{text}" : "";
-            Plotly.restyle(plot, {texttemplate: [template]});
-          }
-          function currentRange() {
-            if (plot._fullLayout && plot._fullLayout.xaxis && plot._fullLayout.xaxis.range) {
-              return plot._fullLayout.xaxis.range;
-            }
-            return null;
-          }
-          plot.on('plotly_relayout', function (eventData) {
-            if (eventData['xaxis.range[0]'] !== undefined && eventData['xaxis.range[1]'] !== undefined) {
-              applyLabels([eventData['xaxis.range[0]'], eventData['xaxis.range[1]']]);
-            } else if (eventData['xaxis.autorange']) {
-              applyLabels(null);
-            }
-          });
-          plot.on('plotly_afterplot', function () {
-            applyLabels(currentRange());
-          });
-          if (plot._fullLayout) {
-            applyLabels(currentRange());
-          }
-        })();
-      </script>
-    {% endif %}
-
     <div id="reported" class="card">
       <h3>3. Flagged sites</h3>
       {% if sites_table %}
