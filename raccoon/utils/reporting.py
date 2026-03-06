@@ -21,6 +21,7 @@ from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from .reconstruction_functions import load_tree, ensure_node_label
 from .plotly_baltic import build_tree_plot
+from . import constants as rc
 
 
 def _svg_data_uri(path: str) -> str:
@@ -96,17 +97,21 @@ def _apply_plot_style(fig: go.Figure) -> None:
     fig.update_yaxes(showline=True, linecolor="black", linewidth=1, gridcolor="rgba(0,0,0,0.05)")
 
 
-def _plot_div(fig: go.Figure, div_id: Optional[str] = None) -> str:
+def _plot_div(fig: go.Figure, div_id: Optional[str] = None, config_overrides: Optional[Dict[str, Any]] = None) -> str:
+    config = {
+        "displayModeBar": False,
+        "responsive": True,
+        "showTips": False,
+        "doubleClick": False,
+    }
+    if config_overrides:
+        config.update(config_overrides)
+
     return pio.to_html(
         fig,
         include_plotlyjs="cdn",
         full_html=False,
-        config={
-            "displayModeBar": False,
-            "responsive": True,
-            "showTips": False,
-            "doubleClick": False,
-        },
+        config=config,
         div_id=div_id,
     )
 
@@ -380,7 +385,7 @@ def generate_combine_report(
             # Dynamically set plot height based on number of locations (min 400px)
             plot_height = max(400, 30 * len(unique_locations))
             fig.update_layout(
-                title="Sampling dates by location",
+                title=rc.REPORT_PLOT_SAMPLING_DATES_BY_LOCATION,
                 xaxis_title="Date",
                 yaxis_title="Location",
                 height=plot_height,
@@ -616,8 +621,8 @@ def generate_alignment_report(outdir: str, alignment_path: str, mask_file: Optio
                     row_type = (row.get("type") or "site").strip().lower()
                     if row_type != "site":
                         continue
-                    site = row.get("flagged") or row.get("Name") or row.get("site")
-                    present_in = row.get("present_in", "")
+                    site = row.get(rc.COL_FLAGGED) or row.get(rc.KEY_NAME) or row.get(rc.COL_SITE)
+                    present_in = row.get(rc.KEY_PRESENT_IN, "")
                     if site is None:
                         continue
                     try:
@@ -643,7 +648,7 @@ def generate_alignment_report(outdir: str, alignment_path: str, mask_file: Optio
                 if row_type == "site":
                     site_rows.append(row)
                 elif row_type == "sequence_record":
-                    flagged = row.get("flagged", "")
+                    flagged = row.get(rc.COL_FLAGGED, "")
                     note = row.get("note", "")
                     sites = [s for s in note.split(",") if s.strip()]
                     sequence_rows.append({
@@ -658,54 +663,79 @@ def generate_alignment_report(outdir: str, alignment_path: str, mask_file: Optio
         if sequence_rows:
             sequence_removals_table = _table_context(pd.DataFrame(sequence_rows))
     n_blocks_plot_html = ""
+    n_blocks_plot_note = ""
     if seq_strings and aln_len:
+        total_rows = len(seq_ids)
+        row_step = 1
+        col_step = 1
+
+        if total_rows > rc.REPORT_N_BLOCKS_MAX_ROWS:
+            row_step = math.ceil(total_rows / rc.REPORT_N_BLOCKS_MAX_ROWS)
+        if aln_len > rc.REPORT_N_BLOCKS_MAX_COLUMNS:
+            col_step = math.ceil(aln_len / rc.REPORT_N_BLOCKS_MAX_COLUMNS)
+
+        sampled_rows = math.ceil(total_rows / row_step)
+        sampled_cols = math.ceil(aln_len / col_step)
+        sampled_cells = sampled_rows * sampled_cols
+
+        if sampled_cells > rc.REPORT_N_BLOCKS_MAX_CELLS:
+            extra_scale = math.ceil(sampled_cells / rc.REPORT_N_BLOCKS_MAX_CELLS)
+            col_step = max(col_step, extra_scale)
+
+        sampled_seq_strings = seq_strings[::row_step]
+        sampled_seq_ids = seq_ids[::row_step]
+        sampled_cols = math.ceil(aln_len / col_step)
+
         z = []
-        text = []
-        y_positions = list(range(len(seq_ids)))
-        for seq in seq_strings:
-            row = [1 if c.upper() == "N" else 0 for c in seq]
-            if len(row) < aln_len:
-                row.extend([0] * (aln_len - len(row)))
-            z.append(row[:aln_len])
-            text.append(list(seq[:aln_len]))
+        for seq in sampled_seq_strings:
+            seq_upper = seq.upper()
+            row = []
+            for start in range(0, aln_len, col_step):
+                end = min(start + col_step, aln_len)
+                if start >= len(seq_upper):
+                    row.append(0.0)
+                    continue
+                window = seq_upper[start:min(end, len(seq_upper))]
+                if not window:
+                    row.append(0.0)
+                    continue
+                n_count = sum(1 for c in window if c == "N")
+                row.append(n_count / len(window))
+            z.append(row)
+
+        x_positions = [start + 1 for start in range(0, aln_len, col_step)]
+        y_positions = list(range(len(sampled_seq_ids)))
         fig = go.Figure(data=[go.Heatmap(
             z=z,
-            x=list(range(1, aln_len + 1)),
+            x=x_positions,
             y=y_positions,
-            colorscale=[[0, "#ffffff"], [1, "#bfc3c8"]]
-            # showscale=False,
-            # text=text,
-            # texttemplate="",
-            # textfont=dict(size=8),
-            # hovertemplate="ID: %{customdata}<br>Position: %{x}<br>Base: %{text}<br>N: %{z}<extra></extra>",
-            # customdata=[[seq_ids[i]] * aln_len for i in range(len(seq_ids))],
+            zmin=0,
+            zmax=1,
+            colorscale=[[0, "#ffffff"], [1, "#5b648d"]],
+            showscale=False,
+            hoverinfo="skip",
         )])
-        # shapes = []
-        # for i in range(len(seq_ids)):
-        #     if i % 2 == 1:
-        #         shapes.append(dict(
-        #             type="rect",
-        #             xref="x",
-        #             yref="y",
-        #             x0=0.5,
-        #             x1=aln_len + 0.5,
-        #             y0=i - 0.5,
-        #             y1=i + 0.5,
-        #             fillcolor="#ede8f3",
-        #             opacity=0.4,
-        #             line_width=0,
-        #             layer="below",
-        #         ))
-        height = max(400, len(seq_ids) * 14)
-        tick_size = 12 if len(seq_ids) <= 40 else 8
-        # fig.update_layout(
-        #     xaxis_title="Position (bp)",
-        #     yaxis_title="Sequence",
-        #     yaxis=dict(tickmode="array", tickvals=y_positions, ticktext=seq_ids, tickfont=dict(size=tick_size)),
-        #     showlegend=False,
-        #     # shapes=shapes,
-        #     height=height
-        # )
+        height = max(400, len(sampled_seq_ids) * 12)
+        tick_size = 12 if len(sampled_seq_ids) <= 40 else 8
+        fig.update_layout(
+            xaxis_title="Position (bp)",
+            yaxis_title="Sequence",
+            yaxis=dict(
+                tickmode="array",
+                tickvals=y_positions,
+                ticktext=sampled_seq_ids,
+                tickfont=dict(size=tick_size),
+            ),
+            showlegend=False,
+            height=height,
+        )
+
+        if row_step > 1 or col_step > 1:
+            n_blocks_plot_note = (
+                f"This plot may be downsampled for performance: every {row_step} sequence(s) and "
+                f"{col_step}-bp windows are shown."
+            )
+
         _apply_plot_style(fig)
         n_blocks_plot_html = _plot_div(fig, div_id="n-blocks-plot")
 
@@ -719,7 +749,7 @@ def generate_alignment_report(outdir: str, alignment_path: str, mask_file: Optio
                 if row_type != "site":
                     continue
                 notes = row.get("note", "").split(";")
-                site_val = row.get("flagged") or row.get("Name")
+                site_val = row.get(rc.COL_FLAGGED) or row.get(rc.KEY_NAME)
                 try:
                     site_int = int(site_val)
                 except Exception:
@@ -795,8 +825,9 @@ def generate_alignment_report(outdir: str, alignment_path: str, mask_file: Optio
             "mean_completeness": round(_safe_mean(completeness), 4),
         },
         "subtitle": "Alignment quality assessment, with potentially problematic sites and sequences flagged.",
-        # "n_blocks_plot_html": n_blocks_plot_html,
-        # "has_n_blocks_plot": bool(n_blocks_plot_html),
+        "n_blocks_plot_html": n_blocks_plot_html,
+        "n_blocks_plot_note": n_blocks_plot_note,
+        "has_n_blocks_plot": bool(n_blocks_plot_html),
         "sites_table": sites_table,
         "sequence_removals_table": sequence_removals_table,
         "flagged_plot_html": flagged_plot_html,
@@ -957,13 +988,13 @@ def generate_phylo_report(outdir: str, treefile: str, flags_csv: Optional[str] =
             merged = frame.groupby(cols, dropna=False, as_index=False).agg(aggregations)
             return merged
 
-        convergent = flags_df[flags_df["mutation_type"].str.contains("convergent", case=False, na=False)]
+        convergent = flags_df[flags_df[rc.COL_MUTATION_TYPE].str.contains(rc.MUTATION_TYPE_CONVERGENT, case=False, na=False)]
         convergent = _merge_present_in(convergent)
         convergent_table = _table_context(convergent)
-        reversion = flags_df[flags_df["mutation_type"].str.contains("reversion", case=False, na=False)]
+        reversion = flags_df[flags_df[rc.COL_MUTATION_TYPE].str.contains(rc.MUTATION_TYPE_REVERSION, case=False, na=False)]
         reversion = _merge_present_in(reversion)
         reversion_table = _table_context(reversion)
-        immune = flags_df[flags_df["mutation_type"].str.contains("adar|apobec", case=False, na=False)]
+        immune = flags_df[flags_df[rc.COL_MUTATION_TYPE].str.contains(rc.MUTATION_TYPE_IMMUNE_EDITING, case=False, na=False)]
         immune_editing_table = _table_context(immune)
 
     generated_stamp = datetime.now().strftime("%Y-%m-%d %H:%M")
@@ -1049,10 +1080,10 @@ def generate_phylo_report(outdir: str, treefile: str, flags_csv: Optional[str] =
                 root_to_tip_plot = _plot_div(fig)
 
     mutation_types_plot = "<p>No mutation types available.</p>"
-    if flags_df is not None and not flags_df.empty and "mutation_type" in flags_df:
-        counts = flags_df["mutation_type"].value_counts().reset_index()
-        counts.columns = ["mutation_type", "count"]
-        fig = go.Figure(data=[go.Bar(x=counts["mutation_type"], y=counts["count"])])
+    if flags_df is not None and not flags_df.empty and rc.COL_MUTATION_TYPE in flags_df:
+        counts = flags_df[rc.COL_MUTATION_TYPE].value_counts().reset_index()
+        counts.columns = [rc.COL_MUTATION_TYPE, "count"]
+        fig = go.Figure(data=[go.Bar(x=counts[rc.COL_MUTATION_TYPE], y=counts["count"])])
         fig.update_layout(xaxis_title="Type", yaxis_title="Count", showlegend=False)
         _apply_plot_style(fig)
         mutation_types_plot = _plot_div(fig)
