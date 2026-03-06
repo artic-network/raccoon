@@ -7,29 +7,32 @@
         <li><a href="#summary">Report Summary</a></li>
         <li><a href="#n-blocks">Alignment N-content</a></li>
         <li><a href="#reported">Flagged sites</a></li>
-        <li><a href="#sequence-removals">Sequence removals</a></li>
-        <li><a href="#flagged">Flagged sites by category</a></li>
+        <li><a href="#flagged">Location of flagged sites</a></li>
+        <li><a href="#sequence-removals">Flagged sequences</a></li>
         <li><a href="#diversity">Per-site diversity</a></li>
       </ol>
     </div>
 
     <div id="summary" class="card">
       <h3>1. Report Summary</h3>
-      <p>Sequences: {{ summary.sequences }}</p>
-      <p>Alignment length: {{ summary.alignment_length }}</p>
-      <p>Mean N content: {{ summary.mean_n_content }}</p>
-      <p>Mean completeness: {{ summary.mean_completeness }}</p>
+      <p>Sequences: {{ summary.sequences }}<br>
+        Alignment length: {{ summary.alignment_length }}</p>
+      <p>Mean N content: {{ summary.mean_n_content }}<br>
+        Mean completeness: {{ summary.mean_completeness }}</p>
     </div>
 
     <div id="n-blocks" class="card">
       <h3>2. Alignment N-content</h3>
       {% if n_blocks_plot_html %}
-        <p class="caption">Purple blocks represent N positions (ambiguous nucleotides) along the alignment for each sequence.</p>
-      {% if n_blocks_plot_note %}
-          <p class="caption">{{ n_blocks_plot_note }}</p>
+        <p class="caption">
+          Purple blocks represent N positions (ambiguous nucleotides) along the alignment for each sequence. <br>
+          {% if n_blocks_plot_note %}
+            {{ n_blocks_plot_note }}
+          {% endif %}
+        </p>
+
         {{ n_blocks_plot_html | safe }}
-        
-        {% endif %}
+
       {% else %}
         <p>No alignment data available for plotting.</p>
       {% endif %}
@@ -37,6 +40,7 @@
     </div>
     <div id="reported" class="card">
       <h3>3. Flagged sites</h3>
+      <p>Categories of mutations checked were {{ flagged_criteria }}.</p>
       {% if sites_table %}
         <div class="table-wrap table-scroll">
           <table class="datatable">
@@ -59,12 +63,22 @@
           </table>
         </div>
       {% else %}
-        <p>No reported sites table available.</p>
+        <p>No sites flagged for review.</p>
+      {% endif %}
+    </div>
+    <div id="flagged" class="card">
+      <h3>4. Location of flagged sites</h3>
+      <p>Categories of mutations checked were {{ flagged_criteria }}.</p>
+      {% if flagged_plot_html %}
+        {{ flagged_plot_html | safe }}
+      {% else %}
+        <p>No sites flagged for review.</p>
       {% endif %}
     </div>
 
     <div id="sequence-removals" class="card">
-      <h3>4. Sequence removals</h3>
+      <h3>5. Flagged sequences</h3>
+      <p>Sequences are flagged for removal if they meet the following criteria: {{ flagged_removal_criteria }}.</p>
       {% if sequence_removals_table %}
         <div class="table-wrap table-scroll">
           <table class="datatable">
@@ -88,15 +102,6 @@
         </div>
       {% else %}
         <p>No sequences flagged for removal.</p>
-      {% endif %}
-    </div>
-
-    <div id="flagged" class="card">
-      <h3>5. Flagged sites by category</h3>
-      {% if flagged_plot_html %}
-        {{ flagged_plot_html | safe }}
-      {% else %}
-        <p>No flagged site plot available.</p>
       {% endif %}
     </div>
 
