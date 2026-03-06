@@ -10,7 +10,20 @@ KEY_MASK_FILE = "mask_file"
 KEY_ISSUES_FOUND = "issues_found"
 KEY_CLUSTERED_SNP_COUNT = "clustered_snp_count"
 
-# Note values
+# Mask file and flag file column names
+COL_FLAGGED = "flagged"
+COL_TYPE = "type"
+COL_SITE = "site"
+COL_MUTATION_TYPE = "mutation_type"
+COL_MASK_BOOLEAN = "mask_boolean"
+COL_SEQUENCE = "sequence"
+COL_PROBLEMATIC_SITES = "problematic_sites"
+
+# Row type values
+ROW_TYPE_SITE = "site"
+ROW_TYPE_SEQUENCE_RECORD = "sequence_record"
+
+# Note values / mutation types
 NOTE_CLUSTERED_SNPS = "clustered_snps"
 NOTE_N_ADJACENT = "N_adjacent"
 NOTE_GAP_ADJACENT = "gap_adjacent"
@@ -18,6 +31,21 @@ NOTE_REVERSION = "reversion"
 NOTE_CONVERGENT = "convergent_snp"
 NOTE_FRAME_BREAK = "frame_break"
 NOTE_UNIQUE_SNP = "unique_snp"
+
+# Mutation type keywords (regex patterns)
+MUTATION_TYPE_CONVERGENT = "convergent"
+MUTATION_TYPE_REVERSION = "reversion"
+MUTATION_TYPE_ADAR = "adar"
+MUTATION_TYPE_APOBEC = "apobec"
+MUTATION_TYPE_IMMUNE_EDITING = "adar|apobec"
+
+# Report display constants
+REPORT_PLOT_SAMPLING_DATES_BY_LOCATION = "Sampling dates by location"
+REPORT_MANY_SEQUENCES_THRESHOLD = 10
+REPORT_MANY_SEQUENCES_LABEL = f"many sequences ({REPORT_MANY_SEQUENCES_THRESHOLD}+)"
+REPORT_N_BLOCKS_MAX_ROWS = 300
+REPORT_N_BLOCKS_MAX_COLUMNS = 2000
+REPORT_N_BLOCKS_MAX_CELLS = 600000
 
 # General config keys (migrated from utils/config.py)
 KEY_INPUT_FASTA = "fasta"
@@ -63,10 +91,10 @@ KEY_REFERENCE_ID = "reference_id"
 KEY_MAX_N_CONTENT = "max_n_content"
 KEY_CLUSTER_WINDOW = "cluster_window"
 KEY_CLUSTER_COUNT = "cluster_count"
-KEY_MASK_CLUSTERED = "mask_clustered"
-KEY_MASK_N_ADJACENT = "mask_n_adjacent"
-KEY_MASK_GAP_ADJACENT = "mask_gap_adjacent"
-KEY_MASK_FRAME_BREAK = "mask_frame_break"
+KEY_FLAG_CLUSTERED = "flag_clustered"
+KEY_FLAG_N_ADJACENT = "flag_n_adjacent"
+KEY_FLAG_GAP_ADJACENT = "flag_gap_adjacent"
+KEY_FLAG_FRAME_BREAK = "flag_frame_break"
 
 
 # Default values for seq-qc cli args
@@ -84,6 +112,6 @@ DEFAULT_HEADER_FIELDS = "{id}|{location}|{date}"
 
 DEFAULT_OUTPUT_FILE = "combined.fasta"
 
-DEFAULT_MAX_N_CONTENT = 0.2
-DEFAULT_CLUSTER_WINDOW = 10
-DEFAULT_CLUSTER_COUNT = 3
+DEFAULT_MAX_N_CONTENT = 0.15
+DEFAULT_CLUSTER_WINDOW = 5
+DEFAULT_CLUSTER_COUNT = 4
