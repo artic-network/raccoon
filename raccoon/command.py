@@ -45,6 +45,7 @@ def build_parser():
     a.add_argument('--flag-n-adjacent', default=True, action=argparse.BooleanOptionalAction, dest='flag_n_adjacent', help='Flag SNPs adjacent to Ns (default: True, to skip set to False)')
     a.add_argument('--flag-gap-adjacent', default=True, action=argparse.BooleanOptionalAction, dest='flag_gap_adjacent', help='Flag SNPs adjacent to gaps (default: True, to skip set to False)')
     a.add_argument('--flag-frame-break', default=True, action=argparse.BooleanOptionalAction, dest='flag_frame_break', help='Flag frame-breaking indels (default: True, to skip set to False)')
+    a.add_argument('--flag-removal-threshold', type=int, default=rc.DEFAULT_FLAG_REMOVAL_THRESHOLD, dest='flag_removal_threshold', help=f'Flag sequences for removal based on criteria (default: {rc.DEFAULT_FLAG_REMOVAL_THRESHOLD} flagged sites)')
     a.set_defaults(func=alignment_cmd.main)
 
     m = sub.add_parser('mask', help='apply a mask file to an alignment')
