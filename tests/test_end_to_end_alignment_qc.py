@@ -63,10 +63,10 @@ class _Args:
         self.max_n_content = 0.05
         self.cluster_window = 10
         self.cluster_count = 3
-        self.mask_clustered = True
-        self.mask_n_adjacent = True
-        self.mask_gap_adjacent = True
-        self.mask_frame_break = True
+        self.flag_clustered = True
+        self.flag_n_adjacent = True
+        self.flag_gap_adjacent = True
+        self.flag_frame_break = True
         for key, value in overrides.items():
             setattr(self, key, value)
 
@@ -102,7 +102,7 @@ def test_alignment_qc_disable_n_adjacent(tmp_path):
     aln_path, gb_path = _build_alignment(tmp_path)
     outdir = tmp_path / "out"
 
-    args = _Args(aln_path, outdir, gb_path, mask_n_adjacent=False)
+    args = _Args(aln_path, outdir, gb_path, flag_n_adjacent=False)
     result = alignment.main(args)
     assert result == 0
 
