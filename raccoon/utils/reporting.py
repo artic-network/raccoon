@@ -590,7 +590,20 @@ def generate_combine_report(
     return outpath
 
 
-def generate_alignment_report(outdir: str, alignment_path: str, mask_file: Optional[str] = None) -> str:
+def generate_alignment_report(
+    outdir: str,
+    alignment_path: str,
+    mask_file: Optional[str] = None,
+    flagged_criteria: Optional[str] = None,
+    flagged_removal_criteria: Optional[str] = None,
+    *,
+    flag_clustered: bool = True,
+    flag_n_adjacent: bool = True,
+    flag_gap_adjacent: bool = True,
+    flag_frame_break: bool = True,
+    cluster_count: int = rc.DEFAULT_CLUSTER_COUNT,
+    cluster_window: int = rc.DEFAULT_CLUSTER_WINDOW,
+) -> str:
     lengths = []
     n_contents = []
     completeness = []
@@ -816,6 +829,18 @@ def generate_alignment_report(outdir: str, alignment_path: str, mask_file: Optio
         cmd_parts.extend(["--mask-file", os.path.basename(mask_file)])
     cmd_line = " ".join(cmd_parts)
 
+    if flagged_criteria is None:
+        criteria_parts = []
+        if flag_clustered:
+            criteria_parts.append(f"clustered SNPs (≥{cluster_count} SNPs within {cluster_window} bp)")
+        if flag_n_adjacent:
+            criteria_parts.append("SNPs adjacent to Ns")
+        if flag_gap_adjacent:
+            criteria_parts.append("SNPs adjacent to gaps")
+        if flag_frame_break:
+            criteria_parts.append("frame-breaking indels")
+        flagged_criteria = "; ".join(criteria_parts) if criteria_parts else "none (all flagging checks disabled)"
+
     outpath = os.path.join(outdir, "aln-qc_report.html")
     context = {
         "summary": {
@@ -825,6 +850,8 @@ def generate_alignment_report(outdir: str, alignment_path: str, mask_file: Optio
             "mean_completeness": round(_safe_mean(completeness), 4),
         },
         "subtitle": "Alignment quality assessment, with potentially problematic sites and sequences flagged.",
+        "flagged_criteria": flagged_criteria,
+        "flagged_removal_criteria": flagged_removal_criteria or "None",
         "n_blocks_plot_html": n_blocks_plot_html,
         "n_blocks_plot_note": n_blocks_plot_note,
         "has_n_blocks_plot": bool(n_blocks_plot_html),
