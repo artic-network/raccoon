@@ -1481,13 +1481,13 @@ def test_unicode_characters_in_metadata_id_raises_error(tmp_path):
     assert result == 1
 
 
-def test_unicode_characters_in_metadata_fields_preserved(tmp_path):
-    """Test that Unicode in non-ID metadata fields are preserved (not converted)."""
+def test_unicode_characters_in_metadata_fields_converted(tmp_path):
+    """Test that Unicode in non-ID metadata fields are converted."""
     fasta_path = tmp_path / "a.fasta"
     _write_fasta(fasta_path, [("seq1", "acgt")])
 
     metadata_path = tmp_path / "meta.csv"
-    # Unicode in location field (not ID) is OK - preserved as-is
+    # Unicode in location field (not ID) is decoded but special chars converted to underscores
     metadata_path.write_text(
         'sample,location,date\nseq1,São Paulo,2024-01-01\n',
         encoding='utf-8'
@@ -1505,7 +1505,7 @@ def test_unicode_characters_in_metadata_fields_preserved(tmp_path):
 
     lines = out.read_text().strip().splitlines()
     # Unicode in location is preserved but space is replaced with underscore
-    assert lines[0] == ">seq1|são_paulo|2024-01-01"
+    assert lines[0] == ">seq1|sao_paulo|2024-01-01"
 
 
 def test_sequence_id_with_special_delimiter_characters(tmp_path):
