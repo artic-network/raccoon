@@ -95,7 +95,7 @@ KEY_FLAG_CLUSTERED = "flag_clustered"
 KEY_FLAG_N_ADJACENT = "flag_n_adjacent"
 KEY_FLAG_GAP_ADJACENT = "flag_gap_adjacent"
 KEY_FLAG_FRAME_BREAK = "flag_frame_break"
-
+KEY_FLAG_REMOVAL_THRESHOLD = "flag_removal_threshold"
 
 # Default values for seq-qc cli args
 
@@ -113,5 +113,6 @@ DEFAULT_HEADER_FIELDS = "{id}|{location}|{date}"
 DEFAULT_OUTPUT_FILE = "combined.fasta"
 
 DEFAULT_MAX_N_CONTENT = 0.15
-DEFAULT_CLUSTER_WINDOW = 5
+DEFAULT_CLUSTER_WINDOW = 6
 DEFAULT_CLUSTER_COUNT = 4
+DEFAULT_FLAG_REMOVAL_THRESHOLD = 20

@@ -330,6 +330,7 @@ def run_alignment_qc(
     flag_n_adjacent=True,
     flag_gap_adjacent=True,
     flag_frame_break=True,
+    flag_removal_threshold=DEFAULT_FLAG_REMOVAL_THRESHOLD
 ):
     """Run a series of alignment QC checks and write summary outputs.
 
@@ -401,7 +402,7 @@ def run_alignment_qc(
             sequence_flag_sites[seq_id].add(site)
 
     flagged_sequences = {
-        seq_id for seq_id, count in sequence_flag_counts.items() if count > 20
+        seq_id for seq_id, count in sequence_flag_counts.items() if count > flag_removal_threshold
     }
 
     mask_file = os.path.join(outdir, 'mask_sites.csv')
@@ -431,8 +432,8 @@ def run_alignment_qc(
             if not present_in:
                 continue
             note = ';'.join(sorted(row[KEY_NOTE]))
-            if len(present_in) > 10:
-                present_in_val = 'many'
+            if len(present_in) > REPORT_MANY_SEQUENCES_THRESHOLD:
+                present_in_val = REPORT_MANY_SEQUENCES_LABEL
             else:
                 present_in_val = ';'.join(present_in)
             writer.writerow({
