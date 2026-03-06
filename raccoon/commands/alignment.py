@@ -37,10 +37,10 @@ def main(args):
         max_n_content = getattr(args, rc.KEY_MAX_N_CONTENT, rc.DEFAULT_MAX_N_CONTENT)
         cluster_window = getattr(args, rc.KEY_CLUSTER_WINDOW, rc.DEFAULT_CLUSTER_WINDOW)
         cluster_count = getattr(args, rc.KEY_CLUSTER_COUNT, rc.DEFAULT_CLUSTER_COUNT)
-        mask_clustered = getattr(args, rc.KEY_MASK_CLUSTERED, True) 
-        mask_n_adjacent = getattr(args, rc.KEY_MASK_N_ADJACENT, True) 
-        mask_gap_adjacent = getattr(args, rc.KEY_MASK_GAP_ADJACENT, True) 
-        mask_frame_break = getattr(args, rc.KEY_MASK_FRAME_BREAK, True)
+        flag_clustered = getattr(args, rc.KEY_FLAG_CLUSTERED, True) 
+        flag_n_adjacent = getattr(args, rc.KEY_FLAG_N_ADJACENT, True) 
+        flag_gap_adjacent = getattr(args, rc.KEY_FLAG_GAP_ADJACENT, True) 
+        flag_frame_break = getattr(args, rc.KEY_FLAG_FRAME_BREAK, True)
 
         summary = af.run_alignment_qc(
             args.alignment,
@@ -50,10 +50,10 @@ def main(args):
             max_n_content=max_n_content,
             cluster_window=cluster_window,
             cluster_count=cluster_count,
-            mask_clustered=mask_clustered,
-            mask_n_adjacent=mask_n_adjacent,
-            mask_gap_adjacent=mask_gap_adjacent,
-            mask_frame_break=mask_frame_break,
+            flag_clustered=flag_clustered,
+            flag_n_adjacent=flag_n_adjacent,
+            flag_gap_adjacent=flag_gap_adjacent,
+            flag_frame_break=flag_frame_break,
         )
 
 

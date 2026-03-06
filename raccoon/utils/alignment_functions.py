@@ -326,10 +326,10 @@ def run_alignment_qc(
     gap_window=1,
     cluster_window=DEFAULT_CLUSTER_WINDOW,
     cluster_count=DEFAULT_CLUSTER_COUNT,
-    mask_clustered=True,
-    mask_n_adjacent=True,
-    mask_gap_adjacent=True,
-    mask_frame_break=True,
+    flag_clustered=True,
+    flag_n_adjacent=True,
+    flag_gap_adjacent=True,
+    flag_frame_break=True,
 ):
     """Run a series of alignment QC checks and write summary outputs.
 
@@ -346,7 +346,7 @@ def run_alignment_qc(
     )
     
     frame_sites = {}
-    if mask_frame_break and genbank_path:
+    if flag_frame_break and genbank_path:
         try:
             frame_sites = find_frame_breaking_indels(aln, genbank_path, reference_id=reference_id)
         except Exception as exc:
@@ -369,17 +369,17 @@ def run_alignment_qc(
 
     # build mask-site dict
     merged = {}
-    if mask_n_adjacent:
+    if flag_n_adjacent:
         for seq_id, sites in snps_near_n.items():
             for site in sites:
                 _add_site(merged, site + 1, seq_id, NOTE_N_ADJACENT)
 
-    if mask_gap_adjacent:
+    if flag_gap_adjacent:
         for seq_id, sites in snps_near_gap.items():
             for site in sites:
                 _add_site(merged, site + 1, seq_id, NOTE_GAP_ADJACENT)
 
-    if mask_clustered:
+    if flag_clustered:
         for seq_id, sites in clustered_snps.items():
             for site in sites:
                 _add_site(merged, site + 1, seq_id, NOTE_CLUSTERED_SNPS)
