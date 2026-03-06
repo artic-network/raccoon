@@ -7,6 +7,7 @@ import numpy as np
 import csv
 import os
 import platform
+import re
 import sys
 from datetime import datetime
 from typing import Iterable, Optional, Dict, Any, List
@@ -71,7 +72,7 @@ def _table_context(df: Optional[pd.DataFrame]) -> Optional[Dict[str, Any]]:
     if df is None or df.empty:
         return None
     headers = list(df.columns)
-    rows = df.astype(str).values.tolist()
+    rows = df.fillna('').astype(str).values.tolist()
     return {"headers": headers, "rows": rows}
 
 
@@ -127,6 +128,94 @@ def _safe_max(values: Iterable[int]) -> int:
     return max(values) if values else 0
 
 
+def _parse_flexible_date(date_str: str) -> Optional[datetime]:
+    """
+    Parse a date string that may be incomplete (year only, year-month, or full date).
+    For year-only dates, returns July 1st of that year (midpoint).
+    For year-month dates, returns the 15th of that month (midpoint).
+    """
+    if not date_str or pd.isna(date_str):
+        return None
+    
+    date_str = str(date_str).strip()
+    
+    # Try full date first (YYYY-MM-DD, YYYY/MM/DD, etc.)
+    try:
+        parsed = pd.to_datetime(date_str)
+        if pd.notna(parsed):
+            return parsed.to_pydatetime()
+    except Exception:
+        pass
+    
+    # Try year-month (YYYY-MM, YYYY/MM)
+    try:
+        parts = date_str.replace("/", "-").split("-")
+        if len(parts) >= 2:
+            year = int(parts[0])
+            month = int(parts[1])
+            if 1 <= month <= 12:
+                return datetime(year, month, 15)
+    except Exception:
+        pass
+    
+    # Try year only (YYYY)
+    try:
+        year = int(date_str)
+        if 1900 <= year <= 2100:  # sanity check
+            return datetime(year, 7, 1)  # midpoint of year
+    except Exception:
+        pass
+    
+    return None
+
+
+def _detect_date_precision(date_str: str) -> str:
+    """
+    Detect the precision of a date string (year, month, or day).
+    Returns 'year', 'month', or 'day' based on the format.
+    """
+    if not date_str or pd.isna(date_str):
+        return 'day'
+    
+    date_str = str(date_str).strip()
+    
+    # Check for full date (YYYY-MM-DD, YYYY/MM/DD, etc.)
+    if re.match(r'^\d{4}[-/]\d{2}[-/]\d{2}$', date_str):
+        return 'day'
+    
+    # Check for year-month (YYYY-MM, YYYY/MM)
+    if re.match(r'^\d{4}[-/]\d{2}$', date_str):
+        return 'month'
+    
+    # Check for year only (YYYY)
+    if re.match(r'^\d{4}$', date_str):
+        return 'year'
+    
+    # Try to parse with pandas to see if it's a full date
+    try:
+        parsed = pd.to_datetime(date_str)
+        if pd.notna(parsed):
+            return 'day'
+    except Exception:
+        pass
+    
+    # Default to day precision if we can't determine
+    return 'day'
+
+
+def _format_date_with_precision(dt: datetime, precision: str) -> str:
+    """
+    Format a datetime object according to specified precision.
+    precision: 'year', 'month', or 'day'
+    """
+    if precision == 'year':
+        return str(dt.year)
+    elif precision == 'month':
+        return f"{dt.year}-{dt.month:02d}"
+    else:  # 'day'
+        return dt.date().isoformat()
+
+
 def generate_combine_report(
     outdir: str,
     output_fasta: str,
@@ -140,6 +229,7 @@ def generate_combine_report(
     max_n_content: Optional[float] = None,
     filter_failures: Optional[List[Dict[str, Any]]] = None,
     metadata_issues: Optional[List[Dict[str, Any]]] = None,
+    date_location_records: Optional[List[Dict[str, Any]]] = None,
 ) -> str:
     records_summary = []
     ids_by_file = {}
@@ -190,8 +280,6 @@ def generate_combine_report(
 
     metadata_summary = "No metadata used."
     metadata_tables: List[Dict[str, Any]] = []
-    metadata_locations = pd.Series(dtype=str)
-    metadata_dates = pd.Series(dtype="datetime64[ns]")
     def _infer_delimiter(path: str, fallback: str = ",") -> str:
         lowered = path.lower()
         if lowered.endswith(".tsv") or lowered.endswith(".tab"):
@@ -209,119 +297,97 @@ def generate_combine_report(
                     "title": os.path.basename(path),
                     "row_count": len(frame),
                     "headers": cols,
-                    "rows": frame.astype(str).values.tolist(),
+                    "rows": frame.fillna('').astype(str).values.tolist(),
                 })
-            meta = pd.concat(frames, ignore_index=True)
-            metadata_locations = meta.get(metadata_location_field, pd.Series(dtype=str)).dropna().astype(str)
-            metadata_dates = pd.to_datetime(meta.get(metadata_date_field, pd.Series(dtype=str)), errors="coerce")
-            date_min = metadata_dates.min()
-            date_max = metadata_dates.max()
-            date_range = "n/a"
-            if pd.notna(date_min) and pd.notna(date_max):
-                date_range = f"{date_min.date().isoformat()} → {date_max.date().isoformat()}"
             metadata_summary = (
-                f"Metadata files: {', '.join([os.path.basename(p) for p in metadata_paths])}. "
-                f"ID field: {metadata_id_field}. "
-                f"Location field: {metadata_location_field} (unique: {metadata_locations.nunique()}). "
-                f"Date field: {metadata_date_field} (range: {date_range})."
+                f"Metadata files provided: {', '.join([os.path.basename(p) for p in metadata_paths])}. "
             )
         except Exception:
             metadata_summary = "Metadata provided, but summary could not be parsed."
 
     header_stats = {"locations": 0, "dates": ""}
-    try:
-        if output_fasta:
-            locs = set()
+    dataset_plot_html = ""
+    
+    # Use the date_location_records provided from combine.py (already harmonized and filtered)
+    if date_location_records:
+        try:
+            # Convert string dates to datetime using flexible parsing for range calculation
             dates = []
-            for rec in SeqIO.parse(output_fasta, "fasta"):
-                parts = rec.id.split(header_separator)
-                if len(parts) >= 2 and parts[1]:
-                    locs.add(parts[1])
-                if len(parts) >= 3:
-                    try:
-                        parsed = pd.to_datetime(parts[2])
-                        if pd.notna(parsed):
-                            dates.append(parsed)
-                    except Exception:
-                        pass
-            header_stats["locations"] = len(locs)
+            precisions = []  # Track the precision of each date
+            for record in date_location_records:
+                date_str = record["date"]
+                precision = _detect_date_precision(date_str)
+                precisions.append(precision)
+                parsed_date = _parse_flexible_date(date_str)
+                if parsed_date:
+                    dates.append(parsed_date)
+            
             if dates:
                 dmin = min(dates)
                 dmax = max(dates)
-                header_stats["dates"] = f"{dmin.date().isoformat()} → {dmax.date().isoformat()}"
-        elif metadata_paths and not metadata_locations.empty:
-            header_stats["locations"] = int(metadata_locations.nunique())
-            if not metadata_dates.empty:
-                date_min = metadata_dates.min()
-                date_max = metadata_dates.max()
-                if pd.notna(date_min) and pd.notna(date_max):
-                    header_stats["dates"] = f"{date_min.date().isoformat()} → {date_max.date().isoformat()}"
-    except Exception:
-        pass
-
-    dataset_plot_html = ""
-    date_location_records = []
-    if output_fasta:
-        try:
-            for rec in SeqIO.parse(output_fasta, "fasta"):
-                parts = rec.id.split(header_separator)
-                if len(parts) < 3:
-                    continue
-                location = parts[1].strip()
-                date_value = parts[2].strip()
-                if not location or not date_value:
-                    continue
-                parsed_date = pd.to_datetime(date_value, errors="coerce")
-                if pd.isna(parsed_date):
-                    continue
-                date_location_records.append({
-                    "date": parsed_date,
-                    "location": location,
-                    "id": parts[0],
-                })
+                
+                # Determine the precision for min and max dates
+                # Use the minimum precision from all dates to be safe
+                min_precision = min(precisions) if precisions else 'day'
+                
+                # Format the range according to precision
+                min_str = _format_date_with_precision(dmin, min_precision)
+                max_str = _format_date_with_precision(dmax, 'day')  # Max date uses its own precision
+                
+                # Actually, let's use the precision of the min and max records specifically
+                min_idx = dates.index(dmin)
+                max_idx = dates.index(dmax)
+                min_precision = precisions[min_idx] if min_idx < len(precisions) else 'day'
+                max_precision = precisions[max_idx] if max_idx < len(precisions) else 'day'
+                
+                min_str = _format_date_with_precision(dmin, min_precision)
+                max_str = _format_date_with_precision(dmax, max_precision)
+                header_stats["dates"] = f"{min_str} → {max_str}"
+            
+            # Count unique locations
+            locations = {rec["location"] for rec in date_location_records}
+            header_stats["locations"] = len(locations)
         except Exception:
-            date_location_records = []
-    elif output_fasta:
-        try:
-            for rec in SeqIO.parse(output_fasta, "fasta"):
-                parts = rec.id.split(header_separator)
-                if len(parts) >= 3:
-                    date_value = pd.to_datetime(parts[2], errors="coerce")
-                    location = parts[1]
-                    if pd.notna(date_value) and location:
-                        date_location_records.append({
-                            "date": date_value,
-                            "location": location,
-                            "id": parts[0],
-                        })
-        except Exception:
-            date_location_records = []
-
+            pass
+    
+    # Build the plot from date_location_records if available
     if date_location_records:
         df = pd.DataFrame(date_location_records)
-        fig = go.Figure(data=[
-            go.Scatter(
-                x=df["date"],
-                y=df["location"],
-                mode="markers",
-                marker=dict(size=8, opacity=0.7),
-                customdata=df.get("id"),
-                hovertemplate="Date: %{x}<br>Location: %{y}<br>ID: %{customdata}<extra></extra>",
-            )
-        ])
-        # Ensure all unique locations are shown as y-axis ticks
+        # Get unique locations BEFORE filtering invalid dates (so all locations appear on axis)
         unique_locations = sorted(df["location"].unique())
-        # Dynamically set plot height based on number of locations (min 400px)
-        plot_height = max(400, 30 * len(unique_locations))
-        fig.update_layout(
-            title="Sampling dates by location",
-            xaxis_title="Date",
-            yaxis_title="Location",
-            height=plot_height,
-        )
-        fig.update_yaxes(categoryorder="array", categoryarray=unique_locations)
-        _apply_plot_style(fig)
-        dataset_plot_html = _plot_div(fig)
+        
+        # Convert string dates to datetime using flexible parsing (handles YYYY, YYYY-MM, YYYY-MM-DD)
+        parsed_dates = []
+        for date_str in df["date"]:
+            parsed = _parse_flexible_date(date_str)
+            parsed_dates.append(parsed)
+        df["date"] = parsed_dates
+        
+        # Remove any rows with invalid dates for plotting, but keep unique_locations list intact
+        df_plot = df.dropna(subset=["date"])
+        
+        if not df_plot.empty:
+            fig = go.Figure(data=[
+                go.Scatter(
+                    x=df_plot["date"],
+                    y=df_plot["location"],
+                    mode="markers",
+                    marker=dict(size=8, opacity=0.7),
+                    customdata=df_plot.get("id"),
+                    hovertemplate="Date: %{x}<br>Location: %{y}<br>ID: %{customdata}<extra></extra>",
+                )
+            ])
+            # Dynamically set plot height based on number of locations (min 400px)
+            plot_height = max(400, 30 * len(unique_locations))
+            fig.update_layout(
+                title="Sampling dates by location",
+                xaxis_title="Date",
+                yaxis_title="Location",
+                height=plot_height,
+            )
+            fig.update_yaxes(categoryorder="array", categoryarray=unique_locations)
+            _apply_plot_style(fig)
+            dataset_plot_html = _plot_div(fig)
 
     filter_summary = []
     if min_length is not None:
@@ -338,6 +404,9 @@ def generate_combine_report(
     length_plot_html = ""
     lengths = []
     length_ids = []
+    fasta_summary = (
+                f"FASTA files provided: {', '.join([os.path.basename(p) for p in input_fastas])}. "
+            )
     for path in input_fastas:
         for rec in SeqIO.parse(path, "fasta"):
             lengths.append(len(rec.seq))
@@ -493,6 +562,7 @@ def generate_combine_report(
         "filter_failures_table": filter_failures_table,
         "metadata_issues_table": metadata_issues_table,
         "length_plot_html": length_plot_html,
+        "fasta_summary": fasta_summary,
         "metadata_summary": metadata_summary,
         "metadata_tables": metadata_tables,
         "dataset_plot_html": dataset_plot_html,
