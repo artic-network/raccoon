@@ -46,9 +46,9 @@ def test_generate_combine_report_renders_template(tmp_path: Path) -> None:
 
     html = Path(report_path).read_text()
     assert "Raccoon seq-qc report" in html
-    assert "Inputs & sequences" in html or "Inputs &amp; sequences" in html
-    assert "Report metadata" in html
-    assert "metadata.csv" in html
+    assert "Input files" in html
+    assert "Final dataset" in html
+    assert "Platform" in html
 
 
 def test_generate_alignment_report_renders_template(tmp_path: Path) -> None:
