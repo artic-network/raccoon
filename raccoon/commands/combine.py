@@ -38,6 +38,31 @@ def parse_header_template(template: str) -> Tuple[str, List[str]]:
     return separator, fields
 
 
+def _sanitize_field(value: str) -> str:
+    """Sanitize a metadata field value for use in headers.
+    
+    Replaces special characters that break phylogenetic tools with underscores.
+    Preserves ISO dates (YYYY-MM-DD format) unchanged.
+    """
+    if value is None or value == "":
+        return ""
+    cleaned = str(value).strip()
+    lowered = cleaned.lower()
+    
+    # Skip sanitization for ISO dates (YYYY-MM-DD format)
+    if re.match(r'^\d{4}-\d{2}-\d{2}$', lowered):
+        return lowered
+    
+    # Replace specific characters that break Newick parsers: spaces, commas, colons, semi-colons, parentheses
+    # Preserve hyphens as they are safe
+    sanitized = re.sub(r'[ ,;:\(\)]', '_', lowered)
+    # Replace multiple consecutive underscores with single underscore
+    sanitized = re.sub(r'_+', '_', sanitized)
+    # Remove leading/trailing underscores
+    sanitized = sanitized.strip('_')
+    return sanitized
+
+
 def format_header_from_template(
     template: str,
     metadata_id_field: str,
@@ -47,31 +72,11 @@ def format_header_from_template(
     
     Args:
         template: Header template like '{sample}|{location}|{date}'
-        field_values: Dictionary mapping field names to their values
+        field_values: Dictionary mapping field names to their values (should already be sanitized)
         
     Returns:
-        Formatted header string with sanitized values
-        (special characters replaced with underscores, except for ISO dates)
+        Formatted header string
     """
-    def _sanitize(value: str) -> str:
-        if value is None or value == "":
-            return ""
-        cleaned = str(value).strip()
-        lowered = cleaned.lower()
-        
-        # Skip sanitization for ISO dates (YYYY-MM-DD format)
-        if re.match(r'^\d{4}-\d{2}-\d{2}$', lowered):
-            return lowered
-        
-        # Replace specific characters that break Newick parsers: spaces, commas, colons, semi-colons, parentheses
-        # Preserve hyphens as they are safe
-        sanitized = re.sub(r'[ ,;:\(\)]', '_', lowered)
-        # Replace multiple consecutive underscores with single underscore
-        sanitized = re.sub(r'_+', '_', sanitized)
-        # Remove leading/trailing underscores
-        sanitized = sanitized.strip('_')
-        return sanitized
-    
     # Create sanitized field values
     # Note: only sanitize non-id fields. The ID field is passed through as-is (no modification)
     sanitized = {}
@@ -80,8 +85,8 @@ def format_header_from_template(
             # For ID field: no sanitization - it should be a clean identifier
             sanitized[k] = str(v).strip() if v else ""
         else:
-            # For other fields: apply full sanitization
-            sanitized[k] = _sanitize(v)
+            # For other fields: apply sanitization
+            sanitized[k] = _sanitize_field(v)
     
     # Format using template
     try:
@@ -480,6 +485,7 @@ def main(args):
         kept_count = 0
         filter_failures = []
         metadata_issues = []
+        date_location_records = []  # Collect harmonized date/location for passing sequences
         try:
             for path in input_fastas:
                 for record in SeqIO.parse(path, "fasta"):
@@ -551,12 +557,12 @@ def main(args):
                         row = metadata_map.get(parsed_id)
                         if row:
                             # Build field values dictionary for template formatting
-                            # Always use "id" as the field name in the template, regardless of metadata_id_field
-                            field_values = {"id": parsed_id}
+                            # Use metadata_id_field as the key (could be "id" or custom field name like "sample_id")
+                            field_values = {metadata_id_field: parsed_id}
                             
                             for field_name in template_field_names:
-                                # Skip "id" field - already added
-                                if field_name == "id":
+                                # Skip ID field - already added above
+                                if field_name == metadata_id_field:
                                     continue
                                 
                                 # Get the raw value from metadata
@@ -567,13 +573,31 @@ def main(args):
                                     harmonized, _ = harmonize_date(raw_value)
                                     field_values[field_name] = harmonized or raw_value
                                 else:
-                                    field_values[field_name] = raw_value
+                                    # For non-date fields, sanitize the value
+                                    field_values[field_name] = _sanitize_field(raw_value)
                             
                             try:
                                 header = format_header_from_template(header_fields_template, metadata_id_field, field_values)
                             except ValueError as e:
                                 logging.error(f"Failed to format header for {parsed_id}: {str(e)}")
                                 continue
+                            
+                            # Capture harmonized date/location for records that pass filters
+                            # Values in field_values are already sanitized
+                            location_in_template = None
+                            date_in_template = None
+                            for field_name in template_field_names:
+                                if field_name == metadata_location_field:
+                                    location_in_template = field_values.get(field_name, "").strip()
+                                if field_name == metadata_date_field:
+                                    date_in_template = field_values.get(field_name, "").strip()
+                            
+                            if location_in_template and date_in_template:
+                                date_location_records.append({
+                                    "date": date_in_template,
+                                    "location": location_in_template,
+                                    "id": parsed_id,
+                                })
                     write_fasta_record(out_handle, header, seq)
                     kept_count += 1
         finally:
@@ -603,7 +627,7 @@ def main(args):
                 )
                 writer.writeheader()
                 writer.writerows(metadata_issues)
-
+        
         try:
             from raccoon.utils import reporting
             reporting.generate_combine_report(
@@ -619,6 +643,7 @@ def main(args):
                 max_n_content=max_n_content,
                 filter_failures=filter_failures,
                 metadata_issues=metadata_issues,
+                date_location_records=date_location_records,
             )
         except Exception:
             logging.exception("Failed to generate combine report")
