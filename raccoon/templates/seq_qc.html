@@ -16,17 +16,18 @@
 
     <div id="summary" class="card">
       <h3>1. Report Summary</h3>
-      <p>FASTA files: {{ summary.fasta_file_count }}</p>
-      <p>Metadata files: {{ summary.metadata_file_count }}</p>
+      <p>FASTA files: {{ summary.fasta_file_count }}<br>
+        Metadata files: {{ summary.metadata_file_count }}</p>
       <p>Total sequences: {{ summary.total_sequences }}</p>
-      <p>Filters: {{ summary.filters }}</p>
-      <p>Filtered: {{ summary.filtered_count }}</p>
+      <p>Filters: {{ summary.filters }}<br>
+        Filtered: {{ summary.filtered_count }}</p>
       <p>Unique locations: {{ summary.locations }}</p>
       <p>Date range: {{ summary.date_range }}</p>
     </div>
 
     <div id="inputs" class="card">
       <h3>2. Input files</h3>
+      <p>{{ fasta_summary }}</p>
       {% for row in records_summary %}
         {% set file_block = (seq_details_by_file | selectattr('file', 'equalto', row.file) | list | first) %}
         <details class="file-details">
@@ -135,11 +136,11 @@
     <div id="lengths" class="card">
       <h3>3. Sequence length distribution</h3>
       {% if length_plot_html %}
+        <p class="caption">Distribution of sequence lengths across all input FASTA files. If a minimum length threshold is specified, it will be shown in the plot.</p>
         {{ length_plot_html | safe }}
       {% else %}
         <p>No length data available for plotting.</p>
       {% endif %}
-      <p class="caption">Distribution of sequence lengths across all input FASTAs.</p>
     </div>
 
 
@@ -148,16 +149,17 @@
       <p>Unique locations: {{ summary.locations }}</p>
       <p>Date range: {{ summary.date_range }}</p>
       {% if dataset_plot_html %}
+          <p class="caption">Date distribution by location.</p>
         {{ dataset_plot_html | safe }}
       {% else %}
-        <p>No date/location data available for plotting.</p>
+        <p>No date/location data available for plotting. To include this information, ensure your metadata files contain valid date and location fields and specify the date and location columns when running raccoon.</p>
       {% endif %}
-      <p class="caption">Sampling timeline by location.</p>
     </div>
 
     <div id="filtered-sequences" class="card">
       <h3>5. Filtered sequences</h3>
       {% if filter_failures_table %}
+      <p>The following sequences failed the length or N-content filters and will not be present in the output FASTA file:</p>
         <div class="table-wrap table-scroll">
           <table class="datatable">
             <thead>
