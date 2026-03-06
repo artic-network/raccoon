@@ -9,6 +9,7 @@ from datetime import datetime
 from typing import Dict, Iterable, List, Optional, Tuple
 
 from Bio import SeqIO
+from unidecode import unidecode
 from raccoon.utils import constants as rc
 
 
@@ -41,13 +42,17 @@ def parse_header_template(template: str) -> Tuple[str, List[str]]:
 def _sanitize_field(value: str) -> str:
     """Sanitize a metadata field value for use in headers.
     
-    Replaces special characters that break phylogenetic tools with underscores.
-    Preserves ISO dates (YYYY-MM-DD format) unchanged.
+    - Converts unicode characters to ASCII equivalents (á->a, ç->c, etc.)
+    - Replaces special characters that break phylogenetic tools with underscores
+    - Preserves ISO dates (YYYY-MM-DD format) unchanged
     """
     if value is None or value == "":
         return ""
     cleaned = str(value).strip()
-    lowered = cleaned.lower()
+    
+    # Convert unicode to ASCII (á->a, ç->c, etc.) before further processing
+    decoded = unidecode(cleaned)
+    lowered = decoded.lower()
     
     # Skip sanitization for ISO dates (YYYY-MM-DD format)
     if re.match(r'^\d{4}-\d{2}-\d{2}$', lowered):
@@ -55,7 +60,7 @@ def _sanitize_field(value: str) -> str:
     
     # Replace specific characters that break Newick parsers: spaces, commas, colons, semi-colons, parentheses
     # Preserve hyphens as they are safe
-    sanitized = re.sub(r'[ ,;:\(\)]', '_', lowered)
+    sanitized = re.sub(r"[ ,;':\(\)]", '_', lowered)
     # Replace multiple consecutive underscores with single underscore
     sanitized = re.sub(r'_+', '_', sanitized)
     # Remove leading/trailing underscores
