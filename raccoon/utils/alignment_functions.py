@@ -326,10 +326,10 @@ def run_alignment_qc(
     gap_window=1,
     cluster_window=DEFAULT_CLUSTER_WINDOW,
     cluster_count=DEFAULT_CLUSTER_COUNT,
-    flag_clustered=True,
-    flag_n_adjacent=True,
-    flag_gap_adjacent=True,
-    flag_frame_break=True,
+    no_flag_clustered=False,
+    no_flag_n_adjacent=False,
+    no_flag_gap_adjacent=False,
+    no_flag_frame_break=False,
     flag_removal_threshold=DEFAULT_FLAG_REMOVAL_THRESHOLD
 ):
     """Run a series of alignment QC checks and write summary outputs.
@@ -337,7 +337,7 @@ def run_alignment_qc(
     Returns a dict summary with details.
     """
     aln = read_alignment(alignment_path)
-
+    
     summary = {}
     flagged_n = find_high_N_sequences(aln, threshold=max_n_content)
     summary['high_n_sequences'] = flagged_n
@@ -347,7 +347,7 @@ def run_alignment_qc(
     )
     
     frame_sites = {}
-    if flag_frame_break and genbank_path:
+    if not no_flag_frame_break and genbank_path:
         try:
             frame_sites = find_frame_breaking_indels(aln, genbank_path, reference_id=reference_id)
         except Exception as exc:
@@ -370,17 +370,17 @@ def run_alignment_qc(
 
     # build mask-site dict
     merged = {}
-    if flag_n_adjacent:
+    if not no_flag_n_adjacent:
         for seq_id, sites in snps_near_n.items():
             for site in sites:
                 _add_site(merged, site + 1, seq_id, NOTE_N_ADJACENT)
 
-    if flag_gap_adjacent:
+    if not no_flag_gap_adjacent:
         for seq_id, sites in snps_near_gap.items():
             for site in sites:
                 _add_site(merged, site + 1, seq_id, NOTE_GAP_ADJACENT)
 
-    if flag_clustered:
+    if not no_flag_clustered:
         for seq_id, sites in clustered_snps.items():
             for site in sites:
                 _add_site(merged, site + 1, seq_id, NOTE_CLUSTERED_SNPS)
