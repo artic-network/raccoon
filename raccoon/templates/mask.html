@@ -5,6 +5,7 @@
       <h3>Table of contents</h3>
       <ol>
         <li><a href="#summary">Summary</a></li>
+        <li><a href="#masked-sites">Masked sites across alignment</a></li>
         <li><a href="#masked">Masked sites by sequence</a></li>
         <li><a href="#mask-sites">Mask file entries</a></li>
       </ol>
@@ -17,10 +18,26 @@
       <p>Masked sites: {{ summary.masked_sites }}</p>
       <p>Masked fraction: {{ summary.masked_pct }}</p>
       <p>Sequences removed: {{ summary.sequences_removed }}</p>
+      <p>Mask character: {{ summary.mask_character }}</p>
+    </div>
+
+    <div id="masked-sites" class="card">
+      <h3>2. Masked sites across alignment</h3>
+      {% if masked_sites_plot_html %}
+        <p class="caption">
+          Red blocks represent masked positions along the alignment for each sequence.
+          {% if masked_sites_plot_note %}
+            {{ masked_sites_plot_note }}
+          {% endif %}
+        </p>
+        {{ masked_sites_plot_html | safe }}
+      {% else %}
+        <p>No masked sites to display.</p>
+      {% endif %}
     </div>
 
     <div id="masked" class="card">
-      <h3>2. Masked sites by sequence</h3>
+      <h3>3. Masked sites by sequence</h3>
       {% if masked_table %}
         <div class="table-wrap table-scroll">
           <table class="datatable">
@@ -48,7 +65,7 @@
     </div>
 
     <div id="mask-sites" class="card">
-      <h3>3. Mask file entries</h3>
+      <h3>4. Mask file entries</h3>
       {% if mask_sites_table %}
         <div class="table-wrap table-scroll">
           <table class="datatable">

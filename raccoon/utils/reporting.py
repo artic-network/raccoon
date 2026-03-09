@@ -903,13 +903,16 @@ def generate_mask_report(
     mask_file: Optional[str] = None,
     output_alignment: Optional[str] = None,
     input_cmd_line: Optional[str] = None,
+    mask_char: str = "?",
 ) -> str:
     lengths = []
     seq_ids = []
+    seq_strings = []
     for rec in SeqIO.parse(alignment_path, "fasta"):
         seq = str(rec.seq)
         lengths.append(len(seq))
         seq_ids.append(rec.id)
+        seq_strings.append(seq)
 
     aln_len = _safe_max(lengths)
     generated_stamp = datetime.now().strftime("%Y-%m-%d %H:%M")
@@ -944,16 +947,119 @@ def generate_mask_report(
         masked_table = _table_context(pd.DataFrame(rows))
 
     mask_sites_table: Optional[Dict[str, Any]] = None
+    position_to_reason: Dict[int, str] = {}
     if mask_file and os.path.exists(mask_file):
         site_rows = []
         with open(mask_file, "r") as handle:
             reader = csv.DictReader(handle)
             for row in reader:
                 site_rows.append(row)
+                # Build position to reason mapping
+                row_type = (row.get("type") or "site").strip().lower()
+                if row_type == "site":
+                    site_val = row.get("flagged") or row.get("name") or row.get("site")
+                    reason = row.get("note", "masked")
+                    if site_val:
+                        try:
+                            pos = int(site_val)
+                            position_to_reason[pos] = reason
+                        except ValueError:
+                            pass
         if site_rows:
             headers = list(site_rows[0].keys())
             rows = [[row.get(h, "") for h in headers] for row in site_rows]
             mask_sites_table = {"headers": headers, "rows": rows}
+
+    masked_sites_plot_html = ""
+    masked_sites_plot_note = ""
+    if seq_strings and aln_len and valid_positions:
+        total_rows = len(seq_ids)
+        row_step = 1
+        col_step = 1
+
+        if total_rows > rc.REPORT_N_BLOCKS_MAX_ROWS:
+            row_step = math.ceil(total_rows / rc.REPORT_N_BLOCKS_MAX_ROWS)
+        if aln_len > rc.REPORT_N_BLOCKS_MAX_COLUMNS:
+            col_step = math.ceil(aln_len / rc.REPORT_N_BLOCKS_MAX_COLUMNS)
+
+        sampled_rows = math.ceil(total_rows / row_step)
+        sampled_cols = math.ceil(aln_len / col_step)
+        sampled_cells = sampled_rows * sampled_cols
+
+        if sampled_cells > rc.REPORT_N_BLOCKS_MAX_CELLS:
+            extra_scale = math.ceil(sampled_cells / rc.REPORT_N_BLOCKS_MAX_CELLS)
+            col_step = max(col_step, extra_scale)
+
+        sampled_seq_strings = seq_strings[::row_step]
+        sampled_seq_ids = seq_ids[::row_step]
+        sampled_cols = math.ceil(aln_len / col_step)
+
+        masked_positions_set = set(valid_positions)
+        z = []
+        hover_text = []
+        for seq in sampled_seq_strings:
+            row = []
+            hover_row = []
+            for start in range(0, aln_len, col_step):
+                end = min(start + col_step, aln_len)
+                window_positions = range(start + 1, end + 1)
+                masked_positions_in_window = [pos for pos in window_positions if pos in masked_positions_set]
+                masked_in_window = len(masked_positions_in_window)
+                window_size = end - start
+                row.append(masked_in_window / window_size if window_size > 0 else 0.0)
+                
+                # Build hover text with positions and reasons
+                if masked_positions_in_window:
+                    if len(masked_positions_in_window) <= 5:
+                        position_details = []
+                        for pos in masked_positions_in_window:
+                            reason = position_to_reason.get(pos, "masked")
+                            position_details.append(f"  {pos}: {reason}")
+                        hover_info = f"Window: {start + 1}-{end}<br>Masked: {masked_in_window}/{window_size}<br>" + "<br>".join(position_details)
+                    else:
+                        hover_info = f"Window: {start + 1}-{end}<br>Masked: {masked_in_window}/{window_size}<br>Positions: {masked_positions_in_window[0]}-{masked_positions_in_window[-1]}"
+                else:
+                    hover_info = f"Window: {start + 1}-{end}<br>Masked: 0/{window_size}"
+                hover_row.append(hover_info)
+            z.append(row)
+            hover_text.append(hover_row)
+
+        x_positions = [start + 1 for start in range(0, aln_len, col_step)]
+        y_positions = list(range(len(sampled_seq_ids)))
+        fig = go.Figure(data=[go.Heatmap(
+            z=z,
+            x=x_positions,
+            y=y_positions,
+            zmin=0,
+            zmax=1,
+            colorscale=[[0, "#ffffff"], [1, "#c77c8a"]],
+            showscale=False,
+            text=hover_text,
+            hovertemplate="%{text}<extra></extra>",
+        )])
+        height = max(400, len(sampled_seq_ids) * 12)
+        tick_size = 12 if len(sampled_seq_ids) <= 40 else 8
+        fig.update_layout(
+            xaxis_title="Position (bp)",
+            yaxis_title="Sequence",
+            yaxis=dict(
+                tickmode="array",
+                tickvals=y_positions,
+                ticktext=sampled_seq_ids,
+                tickfont=dict(size=tick_size),
+            ),
+            showlegend=False,
+            height=height,
+        )
+
+        if row_step > 1 or col_step > 1:
+            masked_sites_plot_note = (
+                f"This plot may be downsampled for performance: every {row_step} sequence(s) and "
+                f"{col_step}-bp windows are shown."
+            )
+
+        _apply_plot_style(fig)
+        masked_sites_plot_html = _plot_div(fig, div_id="masked-sites-plot")
 
     cmd_parts = ["raccoon", "mask", os.path.basename(alignment_path)]
     if mask_file:
@@ -968,10 +1074,13 @@ def generate_mask_report(
             "masked_sites": masked_count,
             "masked_pct": round(masked_pct, 4),
             "sequences_removed": len(sequences_to_remove),
+            "mask_character": mask_char,
         },
         "subtitle": "Masking file application report, summarizing the number and percentage of masked sites, and any sequences removed due to masking.",
         "masked_table": masked_table,
         "mask_sites_table": mask_sites_table,
+        "masked_sites_plot_html": masked_sites_plot_html,
+        "masked_sites_plot_note": masked_sites_plot_note,
         "datafiles": {
             "alignment": os.path.basename(alignment_path),
             "mask_file": os.path.basename(mask_file) if mask_file else "None",
