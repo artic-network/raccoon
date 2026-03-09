@@ -12,7 +12,7 @@ import sys
 from datetime import datetime
 from typing import Iterable, Optional, Dict, Any, List
 
-from Bio import SeqIO
+from Bio import SeqIO, Phylo
 import pandas as pd
 import plotly.graph_objects as go
 import plotly.io as pio
@@ -219,6 +219,97 @@ def _format_date_with_precision(dt: datetime, precision: str) -> str:
         return f"{dt.year}-{dt.month:02d}"
     else:  # 'day'
         return dt.date().isoformat()
+
+
+def _parse_tip_field_names(tip_fields: Optional[str]) -> List[str]:
+    """
+    Parse tip_fields template string into list of field names.
+    Handles brace-wrapped field names like {sample}|{location}|{date}.
+    """
+    if not tip_fields:
+        return []
+    parsed: List[str] = []
+    for field in str(tip_fields).split("|"):
+        name = field.strip()
+        if not name:
+            continue
+        # Strip braces if present
+        if name.startswith("{") and name.endswith("}") and len(name) > 2:
+            name = name[1:-1].strip()
+        if name:
+            parsed.append(name)
+    return parsed
+
+
+def _extract_date_from_tip_label(
+    label: str,
+    tip_fields: Optional[str] = None,
+    tip_field_delimiter: str = "|",
+    tip_date_field: Optional[str] = None,
+) -> tuple[Optional[str], Optional[datetime], str]:
+    """
+    Extract date value from a tip label using the template system.
+    
+    Args:
+        label: The tip label to parse
+        tip_fields: Template string like "sample|location|date"
+        tip_field_delimiter: Delimiter separating fields in the label
+        tip_date_field: Name of the field containing the date (defaults to "date")
+    
+    Returns:
+        Tuple of (raw_date_string, parsed_datetime, precision)
+        Returns (None, None, 'day') if date cannot be extracted
+        
+    Fallback behavior:
+        If the specified date field doesn't contain a valid date, falls back to
+        trying the last field in the label as a final attempt.
+    """
+    if not label:
+        return None, None, 'day'
+    
+    parts = [p.strip() for p in label.split(tip_field_delimiter)]
+    
+    # Parse field names from template
+    field_names = _parse_tip_field_names(tip_fields)
+    
+    # Determine which field contains the date
+    date_field_name = tip_date_field or "date"
+    date_index = -1
+    
+    if field_names:
+        # Look for the date field by name
+        for idx, field_name in enumerate(field_names):
+            if field_name.lower() in [date_field_name.lower(), "dates"]:
+                date_index = idx
+                break
+        # If not found by name, use last field as fallback (convention)
+        if date_index == -1:
+            date_index = len(field_names) - 1
+    else:
+        # No template provided, use last field as fallback
+        date_index = len(parts) - 1
+    
+    # Extract date value
+    if 0 <= date_index < len(parts):
+        raw_date = parts[date_index]
+        if raw_date:
+            parsed_dt = _parse_flexible_date(raw_date)
+            if parsed_dt is not None:
+                precision = _detect_date_precision(raw_date)
+                return raw_date, parsed_dt, precision
+    
+    # Fallback: if extraction failed and we didn't already try the last field,
+    # try the last field as a final attempt
+    last_index = len(parts) - 1
+    if last_index >= 0 and last_index != date_index:
+        raw_date = parts[last_index]
+        if raw_date:
+            parsed_dt = _parse_flexible_date(raw_date)
+            if parsed_dt is not None:
+                precision = _detect_date_precision(raw_date)
+                return raw_date, parsed_dt, precision
+    
+    return None, None, 'day'
 
 
 def generate_combine_report(
@@ -1106,26 +1197,47 @@ def generate_phylo_report(
     treefile: str,
     flags_csv: Optional[str] = None,
     tree_format: str = "auto",
-    tip_fields: str = "sample|location|date",
+    tip_fields: str = None,
+    tip_field_delimiter: str = "|",
+    tip_date_field: Optional[str] = None,
+    midpoint_root: bool = False,
+    outgroup_ids: Optional[list] = None,
     input_cmd_line: Optional[str] = None,
 ) -> str:
     my_tree = load_tree(treefile, tree_format=tree_format)
+    
+    # Determine tree rooting method
+    if midpoint_root:
+        tree_rooting_method = "midpoint rooted"
+    elif outgroup_ids and len(outgroup_ids) > 0:
+        tree_rooting_method = "outgroup rooted"
+    else:
+        tree_rooting_method = "unknown"
+    
     tip_names = []
     tip_heights = []
     tip_dates = []
+    tip_dates_parsed = []
+    tip_date_precisions = []
+    
     for node in my_tree.Objects:
         if node.branchType == 'leaf':
             label = ensure_node_label(node)
             if label:
                 tip_names.append(label)
                 tip_heights.append(node.height)
-                parts = label.split("|")
-                date_val = None
-                if len(parts) >= 4:
-                    date_val = parts[-1]
-                elif len(parts) >= 3:
-                    date_val = parts[-1]
-                tip_dates.append(date_val)
+                
+                # Extract date using template system
+                raw_date, parsed_date, precision = _extract_date_from_tip_label(
+                    label,
+                    tip_fields=tip_fields,
+                    tip_field_delimiter=tip_field_delimiter,
+                    tip_date_field=tip_date_field,
+                )
+                
+                tip_dates.append(raw_date)
+                tip_dates_parsed.append(parsed_date)
+                tip_date_precisions.append(precision)
 
     flags_df = None
     if flags_csv and os.path.exists(flags_csv):
@@ -1189,13 +1301,25 @@ def generate_phylo_report(
         raccoon_version = "unknown"
 
     root_to_tip_plot = "<p>No root-to-tip distances available.</p>"
-    if tip_heights and tip_dates:
-        parsed_dates = [_parse_flexible_date(date_val) for date_val in tip_dates]
-        date_series = pd.Series(parsed_dates, dtype="datetime64[ns]")
+    if tip_heights and tip_dates_parsed:
+        # Use pre-parsed dates
+        date_series = pd.Series(tip_dates_parsed, dtype="datetime64[ns]")
         mask = date_series.notna()
         if mask.any():
             x_dates = date_series[mask]
             y_heights = np.array(tip_heights)[mask.values]
+            
+            # Get valid indices and corresponding data
+            valid_indices = np.where(mask.values)[0]
+            valid_tip_names = [tip_names[i] for i in valid_indices]
+            valid_precisions = [tip_date_precisions[i] for i in valid_indices]
+            
+            # Format dates with their original precision for display
+            formatted_dates = [
+                _format_date_with_precision(dt, prec)
+                for dt, prec in zip(x_dates, valid_precisions)
+            ]
+            
             x_decimal_year = np.array([
                 d.year + ((d.dayofyear - 1) / (366 if d.is_leap_year else 365))
                 for d in x_dates
@@ -1230,6 +1354,9 @@ def generate_phylo_report(
                 upper = upper[order]
                 lower = lower[order]
                 x_decimal_year = x_decimal_year[order]
+                # Also reorder tip names and formatted dates
+                valid_tip_names = [valid_tip_names[i] for i in order]
+                formatted_dates = [formatted_dates[i] for i in order]
 
                 fig = go.Figure()
                 fig.add_trace(go.Scatter(
@@ -1237,8 +1364,8 @@ def generate_phylo_report(
                     y=y_heights,
                     mode="markers",
                     marker=dict(color="#4BA3A8", size=8),
-                    text=[tip_names[i] for i, m in enumerate(mask.values) if m],
-                    hovertemplate="%{text}<br>Date: %{x|%Y-%m-%d}<br>Distance: %{y:.4f}<extra></extra>",
+                    text=[f"{name}<br>Date: {date_str}" for name, date_str in zip(valid_tip_names, formatted_dates)],
+                    hovertemplate="%{text}<br>Distance: %{y:.4f}<extra></extra>",
                     name="Tips",
                 ))
                 x_min = float(x_decimal_year.min())
@@ -1326,6 +1453,7 @@ def generate_phylo_report(
             "tree_height": round(getattr(my_tree, "treeHeight", "n/a"), 4),
         },
         "subtitle": "Phylogenetic tree quality assessment, with temporal signal evaluation and convergence/reversion flag summaries if ancestral state files available.",
+        "tree_rooting_method": tree_rooting_method,
         "tree_plot_html": tree_plot_html,
         "root_to_tip_plot_html": root_to_tip_plot,
         "root_to_tip_stats": root_to_tip_stats,
