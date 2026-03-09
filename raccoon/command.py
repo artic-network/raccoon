@@ -52,6 +52,7 @@ def build_parser():
     m = sub.add_parser('mask', help='apply a mask file to an alignment')
     m.add_argument('alignment', help='Input alignment fasta file')
     m.add_argument('--mask-file', required=True, dest='mask_file', help='Mask CSV file from aln-qc')
+    m.add_argument('--mask-character', default=rc.DEFAULT_MASK_CHARACTER, dest='mask_character', help=f'Character to use for masking (default: {rc.DEFAULT_MASK_CHARACTER})')
     m.add_argument('-o', '--outfile', dest='outfile', default=None, help='Output masked alignment file')
     m.add_argument('-d', '--outdir', dest='outdir', default='.', help='Output directory')
     m.add_argument('-t', '--sequence-type', choices=['nt','aa'], default='nt', dest='sequence_type', help='Sequence type (default: nt)')

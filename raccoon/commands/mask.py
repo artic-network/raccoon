@@ -3,6 +3,7 @@
 import os
 import logging
 
+import raccoon.utils.constants as rc
 
 def main(args):
     if not hasattr(args, "alignment"):
@@ -34,7 +35,7 @@ def main(args):
             if not os.path.isabs(output_path):
                 output_path = os.path.join(outdir, output_path)
 
-            mask_char = "X" if getattr(args, "sequence_type", "nt") == "aa" else "N"
+            mask_char = getattr(args, rc.KEY_MASK_CHARACTER, rc.DEFAULT_MASK_CHARACTER)
             masked_sites = af.apply_mask_to_alignment(
                 alignment_path,
                 mask_file,

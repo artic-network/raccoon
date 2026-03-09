@@ -97,6 +97,7 @@ KEY_NO_FLAG_GAP_ADJACENT = "no_flag_gap_adjacent"
 KEY_NO_FLAG_FRAME_BREAK = "no_flag_frame_break"
 KEY_FLAG_REMOVAL_THRESHOLD = "flag_removal_threshold"
 
+KEY_MASK_CHARACTER = "mask_character"
 # Default values for seq-qc cli args
 
 DEFAULT_ID_FIELD = "sample"
@@ -116,3 +117,4 @@ DEFAULT_MAX_N_CONTENT = 0.15
 DEFAULT_CLUSTER_WINDOW = 6
 DEFAULT_CLUSTER_COUNT = 4
 DEFAULT_FLAG_REMOVAL_THRESHOLD = 20
+DEFAULT_MASK_CHARACTER = "?"
