@@ -5,12 +5,11 @@
       <h3>Table of contents</h3>
       <ol>
         <li><a href="#summary">Summary</a></li>
-        <li><a href="#tree">Interactive tree</a></li>
+        <li><a href="#tree">Input tree</a></li>
         <li><a href="#root-to-tip">Root-to-tip regression</a></li>
         <li><a href="#convergent">Convergent mutations</a></li>
         <li><a href="#reversions">Reversions</a></li>
         <li><a href="#immune">Signatures of human immune editing</a></li>
-        <li><a href="#mutation-types">Flagged mutation types</a></li>
       </ol>
     </div>
 
@@ -21,21 +20,16 @@
       <p>Y span: {{ summary.y_span }}</p>
     </div>
 
-    <div id="root-to-tip" class="card">
-      <h3>3. Root-to-tip regression</h3>
-      {{ root_to_tip_plot_html | safe }}
-    </div>
-
     <div id="tree" class="card">
-      <h3>2. Interactive tree</h3>
+      <h3>2. Input tree</h3>
       {% if tree_plot_html %}
+        <p class="caption">Use the dropdown to colour tips by trait and the slider to expand the tree vertically.</p>
         <div id="tree-plot-container">
           {{ tree_plot_html | safe }}
         </div>
       {% else %}
-        <p>No interactive tree available.</p>
+        <p>No interactive tree available, tree failed to render.</p>
       {% endif %}
-      <p class="caption">Use the dropdown to colour tips by trait and the slider to expand the tree vertically.</p>
     </div>
     {% if tree_plot_html %}
       <script>
@@ -59,8 +53,37 @@
       </script>
     {% endif %}
 
+    <div id="root-to-tip" class="card">
+      <h3>3. Root-to-tip regression</h3>
+      <p>Root-to-tip regression can be used to visually assess the temporal signal in the phylogenetic tree. It plots the genetic distance from the root against the sampling dates of the sequences.</p>
+      <p>
+        Primer: the slope is the estimated evolutionary rate (substitutions/site/year, using decimal-year dates), the x-intercept estimates tMRCA,
+        R² is the fraction of variation explained by the regression, and r is the Pearson correlation coefficient.
+        These values are sensitive to tree rooting, so an incorrect root placement can shift the inferred rate, tMRCA, and fit statistics.
+      </p>
+      {% if root_to_tip_stats %}
+        <p>
+          Slope (rate, subs/site/year): {{ "%.2e"|format(root_to_tip_stats.slope) }} |
+          tMRCA (x-intercept, decimal year): {{ root_to_tip_stats.tmrca }} |
+          R²: {{ "%.3f"|format(root_to_tip_stats.r_squared) }} |
+          r: {{ "%.3f"|format(root_to_tip_stats.correlation) }}
+        </p>
+      {% endif %}
+      {% if root_to_tip_plot_html %}
+        {{ root_to_tip_plot_html | safe }}
+      {% else %}
+        <p>No root-to-tip regression plot available.</p>
+      {% endif %}
+    </div>
+
+
+
     <div id="convergent" class="card">
       <h3>4. Convergent mutations</h3>
+      <p>
+        Convergent mutations are mutations that have independently arisen multiple times across the tree.<br>
+        Large numbers of convergent SNPs can indicate convergent evolution (real) OR alignment/reconstruction errors (artifacts).
+      </p> 
       {% if convergent_table %}
         <div class="table-wrap table-scroll">
           <table class="datatable">
@@ -83,12 +106,15 @@
           </table>
         </div>
       {% else %}
+        <p>Ancestral state reconstruction files must be supplied to check for convergent mutations.</p>
         <p>No convergent mutations flagged.</p>
       {% endif %}
     </div>
 
     <div id="reversions" class="card">
       <h3>5. Reversions</h3>
+      <p>Reversions are mutations that revert to a previous state observed in the tree.</p>
+      <p>If assembly references are supplied, reversions can flag potential assembly errors.</p>
       {% if reversion_table %}
         <div class="table-wrap table-scroll">
           <table class="datatable">
@@ -111,12 +137,14 @@
           </table>
         </div>
       {% else %}
+        <p>Ancestral state reconstruction files must be supplied to check for reversions.</p>
         <p>No reversions flagged.</p>
       {% endif %}
     </div>
 
     <div id="immune" class="card">
       <h3>6. Signatures of human immune editing</h3>
+      <p>Signatures of human immune editing are mutations that may be influenced by the host immune system. Raccoon can check for signatures of ADAR editing (clusters of T->C mutations) and APOBEC editing (TC->TT and GA->AA mutations).</p>
       {% if immune_editing_table %}
         <div class="table-wrap table-scroll">
           <table class="datatable">
@@ -139,13 +167,9 @@
           </table>
         </div>
       {% else %}
+        <p>Ancestral state reconstruction files must be supplied to check for signatures of immune editing.</p>
         <p>No immune editing signatures flagged.</p>
       {% endif %}
     </div>
-
-    <!-- <div id="mutation-types" class="card">
-      <h3>7. Flagged mutation types</h3>
-      {{ mutation_types_plot_html | safe }}
-    </div> -->
   </div>
 {% endblock %}
