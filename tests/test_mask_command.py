@@ -43,6 +43,7 @@ class _Args:
         self.outdir = str(outdir)
         self.outfile = None
         self.sequence_type = "nt"
+        self.mask_character = "?"
         for key, value in overrides.items():
             setattr(self, key, value)
 
@@ -61,8 +62,8 @@ def test_mask_command_writes_masked_alignment(tmp_path):
 
     masked_aln = AlignIO.read(str(masked_path), "fasta")
     for rec in masked_aln:
-        assert rec.seq[1] == "N"
-        assert rec.seq[2] == "N"
+        assert rec.seq[1] == "?"
+        assert rec.seq[2] == "?"
 
 
 def test_mask_command_preserves_unmasked_sites(tmp_path):
@@ -89,7 +90,7 @@ def test_mask_command_preserves_unmasked_sites(tmp_path):
         })
 
     outdir = tmp_path / "out"
-    args = _Args(aln_path, mask_path, outdir)
+    args = _Args(aln_path, mask_path, outdir, mask_character="N")
     result = mask.main(args)
     assert result == 0
 
