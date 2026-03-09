@@ -98,6 +98,8 @@ KEY_NO_FLAG_FRAME_BREAK = "no_flag_frame_break"
 KEY_FLAG_REMOVAL_THRESHOLD = "flag_removal_threshold"
 
 KEY_MASK_CHARACTER = "mask_character"
+KEY_TIP_FIELDS = "tip_fields"
+
 # Default values for seq-qc cli args
 
 DEFAULT_ID_FIELD = "sample"
@@ -110,7 +112,6 @@ DEFAULT_METADATA_DELIMITER = ","
 
 DEFAULT_HEADER_SEPARATOR = "|"
 DEFAULT_HEADER_FIELDS = "{id}|{location}|{date}"
-DEFAULT_TIP_FIELDS = "sample|location|date"
 
 DEFAULT_OUTPUT_FILE = "combined.fasta"
 

@@ -3,11 +3,11 @@
 import os
 import logging
 from Bio import SeqIO, Phylo
+from raccoon.utils import constants as rc
 
-
-def _parse_tip_field_names(tip_fields):
+def _parse_tip_field_names(tip_fields, tip_field_delimiter="|"):
     parsed = []
-    for field in str(tip_fields or "").split("|"):
+    for field in str(tip_fields or "").split(tip_field_delimiter):
         name = field.strip()
         if not name:
             continue
@@ -18,8 +18,8 @@ def _parse_tip_field_names(tip_fields):
     return parsed
 
 
-def _validate_tip_label_fields(treefile, tree_format, tip_fields):
-    field_names = _parse_tip_field_names(tip_fields)
+def _validate_tip_label_fields(treefile, tree_format, tip_fields, tip_field_delimiter="|"):
+    field_names = _parse_tip_field_names(tip_fields, tip_field_delimiter=tip_field_delimiter)
     if not field_names:
         return False, "--tip-fields must define at least one field name"
 
@@ -43,7 +43,7 @@ def _validate_tip_label_fields(treefile, tree_format, tip_fields):
             continue
 
         label = ensure_node_label(node) or getattr(node, "name", "") or ""
-        parts = [p.strip() for p in label.split("|")]
+        parts = [p.strip() for p in label.split(tip_field_delimiter)]
         if len(parts) < expected_count:
             invalid.append(label)
 
@@ -110,43 +110,39 @@ def main(args):
         
         # validate input files
         assembly_refs = getattr(args, 'assembly_refs', None)
-        if assembly_refs and not io.validate_alignment_file(assembly_refs):
+        mask_file = getattr(args, 'mask_file', None)
+        alignment = getattr(args, 'alignment', None)
+        
+        for file in [alignment, assembly_refs, mask_file]:
+            if file and not io.validate_input_file(file, "Input file"):
+                return 1
+
+        if alignment and not io.validate_alignment_file(alignment):
             return 1
 
         treefile = io.resolve_existing_file(getattr(args, 'phylogeny', None), outdir, "Phylogeny file")
         if not treefile:
-            return 1
-        
-        mask_file = getattr(args, 'mask_file', None)
-        if mask_file and not io.validate_input_file(mask_file, "Mask file"):
-            return 1
-
-        alignment = getattr(args, 'alignment', None)
-        if alignment and not io.validate_alignment_file(alignment):
             return 1
 
         state_file = io.resolve_asr_state_file(getattr(args, 'asr_state', None), treefile)
         if getattr(args, 'asr_state', None) and not state_file:
             return 1
 
+        # Determine if midpoint rooting should be applied
         midpoint_root = bool(getattr(args, 'midpoint_root', False))
         midpoint_root_for_report = midpoint_root and not bool(state_file)
         if midpoint_root and state_file:
             logging.info("--midpoint-root ignored because --asr-state was provided")
         
-        midpoint_root_for_report = midpoint_root and not and not args.outgroup_ids
+        midpoint_root_for_report = midpoint_root and not args.outgroup_ids
         if midpoint_root and args.outgroup_ids:
             logging.info("--midpoint-root ignored because --outgroup-ids was provided")
         
+        # Parse and validate tip label fields
+        tip_field_delimiter = getattr(args, 'tip_field_delimiter', rc.DEFAULT_HEADER_SEPARATOR)
+        tip_date_field = getattr(args, 'tip_date_field', rc.DEFAULT_DATE_FIELD)
 
-        # config = {}
-        # config[KEY_OUTDIR] = outdir
-        # phylogeny_base = os.path.splitext(os.path.basename(treefile))[0]
-        # config[KEY_OUTFILENAME] = phylogeny_base
-        # config[KEY_PHYLOGENY] = phylogeny_base
-        # config[KEY_RUN_APOBEC3_PHYLO] = args.run_apobec
-
-        tip_fields = getattr(args, 'tip_fields', None)
+        tip_fields = getattr(args, 'tip_fields', rc.DEFAULT_HEADER_FIELDS)
         valid_tip_fields, tip_fields_error = _validate_tip_label_fields(treefile, args.tree_format, tip_fields)
         if not valid_tip_fields:
             logging.error(tip_fields_error)
@@ -156,6 +152,7 @@ def main(args):
         if args.outgroup_ids:
             outgroup_ids = [x.strip() for x in args.outgroup_ids.split(',') if x.strip()]
 
+        phylogeny_base = os.path.splitext(os.path.basename(treefile))[0]
         mask_file = mask_file or os.path.join(outdir, f"{phylogeny_base}.mask.csv")
 
         treefile = _midpoint_root_tree_file(treefile, outdir, tree_format=args.tree_format) if midpoint_root_for_report else treefile
@@ -181,6 +178,8 @@ def main(args):
                 flags_csv=flags_csv,
                 tree_format=args.tree_format,
                 tip_fields=tip_fields,
+                tip_field_delimiter=tip_field_delimiter,
+                tip_date_field=tip_date_field,
                 midpoint_root=midpoint_root_for_report,
                 outgroup_ids=outgroup_ids if outgroup_ids else None,
                 input_cmd_line=getattr(args, "input_cmd_line", None),
