@@ -17,13 +17,15 @@
       <h3>1. Summary</h3>
       <p>Tips: {{ summary.tips }}</p>
       <p>Tree height: {{ summary.tree_height }}</p>
-      <p>Y span: {{ summary.y_span }}</p>
     </div>
 
     <div id="tree" class="card">
       <h3>2. Input tree</h3>
       {% if tree_plot_html %}
         <p class="caption">Use the dropdown to colour tips by trait and the slider to expand the tree vertically.</p>
+        <p>
+        Further explore this tree in <a href="https://artic-network.github.io/peartree/" target="_blank" rel="noopener noreferrer">PearTree</a>.
+        </p>
         <div id="tree-plot-container">
           {{ tree_plot_html | safe }}
         </div>

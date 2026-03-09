@@ -1323,8 +1323,7 @@ def generate_phylo_report(
     context = {
         "summary": {
             "tips": len(tip_names),
-            "tree_height": getattr(my_tree, "treeHeight", "n/a"),
-            "y_span": getattr(my_tree, "ySpan", "n/a"),
+            "tree_height": round(getattr(my_tree, "treeHeight", "n/a"), 4),
         },
         "subtitle": "Phylogenetic tree quality assessment, with temporal signal evaluation and convergence/reversion flag summaries if ancestral state files available.",
         "tree_plot_html": tree_plot_html,
