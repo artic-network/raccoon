@@ -2,6 +2,7 @@
 """Phylogenetic QC subcommand wrapper."""
 import os
 import logging
+from Bio import SeqIO, Phylo
 
 
 def _parse_tip_field_names(tip_fields):
@@ -56,6 +57,36 @@ def _validate_tip_label_fields(treefile, tree_format, tip_fields):
     return True, None
 
 
+def _detect_biophylo_format(treefile: str, tree_format: str = "auto") -> str:
+    if tree_format in {"newick", "nexus"}:
+        return tree_format
+    lower = treefile.lower()
+    if lower.endswith(".nex") or lower.endswith(".nexus"):
+        return "nexus"
+    try:
+        with open(treefile, "r") as handle:
+            head = handle.read(200).lower()
+        if "#nexus" in head or "begin trees;" in head:
+            return "nexus"
+    except Exception:
+        pass
+    return "newick"
+
+
+def _midpoint_root_tree_file(treefile: str, outdir: str, tree_format: str = "auto") -> str:
+    fmt = _detect_biophylo_format(treefile, tree_format=tree_format)
+    try:
+        tree = Phylo.read(treefile, fmt)
+        tree.root_at_midpoint()
+        base = os.path.splitext(os.path.basename(treefile))[0]
+        ext = ".nexus" if fmt == "nexus" else ".nwk"
+        rooted_path = os.path.join(outdir, f"{base}.midpoint_rooted{ext}")
+        Phylo.write(tree, rooted_path, fmt)
+        return rooted_path
+    except Exception:
+        return treefile
+
+
 def main(args):
     """Run phylogenetic QC.
 
@@ -103,12 +134,17 @@ def main(args):
         if midpoint_root and state_file:
             logging.info("--midpoint-root ignored because --asr-state was provided")
         
-        config = {}
-        config[KEY_OUTDIR] = outdir
-        phylogeny_base = os.path.splitext(os.path.basename(treefile))[0]
-        config[KEY_OUTFILENAME] = phylogeny_base
-        config[KEY_PHYLOGENY] = phylogeny_base
-        config[KEY_RUN_APOBEC3_PHYLO] = args.run_apobec
+        midpoint_root_for_report = midpoint_root and not and not args.outgroup_ids
+        if midpoint_root and args.outgroup_ids:
+            logging.info("--midpoint-root ignored because --outgroup-ids was provided")
+        
+
+        # config = {}
+        # config[KEY_OUTDIR] = outdir
+        # phylogeny_base = os.path.splitext(os.path.basename(treefile))[0]
+        # config[KEY_OUTFILENAME] = phylogeny_base
+        # config[KEY_PHYLOGENY] = phylogeny_base
+        # config[KEY_RUN_APOBEC3_PHYLO] = args.run_apobec
 
         tip_fields = getattr(args, 'tip_fields', None)
         valid_tip_fields, tip_fields_error = _validate_tip_label_fields(treefile, args.tree_format, tip_fields)
@@ -121,6 +157,8 @@ def main(args):
             outgroup_ids = [x.strip() for x in args.outgroup_ids.split(',') if x.strip()]
 
         mask_file = mask_file or os.path.join(outdir, f"{phylogeny_base}.mask.csv")
+
+        treefile = _midpoint_root_tree_file(treefile, outdir, tree_format=args.tree_format) if midpoint_root_for_report else treefile
 
         flags_csv = pf.run_phylo_qc(
             treefile=treefile,
