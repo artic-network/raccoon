@@ -78,3 +78,81 @@ def test_build_tree_plot_without_branch_snps(tmp_path):
     html = plotly_baltic.build_tree_plot("tree", branch_snps_path=str(tmp_path / "missing.csv"))
     assert "Reset view" in html
     assert "Branch:" not in html
+
+
+def test_build_tree_plot_color_by_includes_location_date_year_and_field_indexes(tmp_path):
+    csv_path = tmp_path / "branch_snps.csv"
+    _write_branch_snps_csv(csv_path)
+
+    fake_tree = FakeTree()
+    fake_tree.tip_a.name = "tipA|Loc1|ClusterA|2024"
+    fake_tree.tip_b.name = "tipB|Loc2|ClusterB|2024-02"
+
+    original_load_tree = plotly_baltic.load_tree
+    original_ensure = plotly_baltic.ensure_node_label
+    try:
+        plotly_baltic.load_tree = lambda *_args, **_kwargs: fake_tree
+        plotly_baltic.ensure_node_label = lambda node: node.name
+        html = plotly_baltic.build_tree_plot("tree", branch_snps_path=str(csv_path))
+    finally:
+        plotly_baltic.load_tree = original_load_tree
+        plotly_baltic.ensure_node_label = original_ensure
+
+    assert '"label":"date"' in html
+    assert '"label":"year"' in html
+    assert '"label":"branch_type"' not in html
+    assert '"label":"label"' not in html
+    assert '"label":"field_1"' not in html
+    assert '"label":"field_-1"' not in html
+
+
+def test_build_tree_plot_color_by_includes_field_indexes_when_tip_fields_missing(tmp_path):
+    csv_path = tmp_path / "branch_snps.csv"
+    _write_branch_snps_csv(csv_path)
+
+    fake_tree = FakeTree()
+    fake_tree.tip_a.name = "tipA|Loc1|ClusterA|2024"
+    fake_tree.tip_b.name = "tipB|Loc2|ClusterB|2024-02"
+
+    original_load_tree = plotly_baltic.load_tree
+    original_ensure = plotly_baltic.ensure_node_label
+    try:
+        plotly_baltic.load_tree = lambda *_args, **_kwargs: fake_tree
+        plotly_baltic.ensure_node_label = lambda node: node.name
+        html = plotly_baltic.build_tree_plot("tree", branch_snps_path=str(csv_path), tip_fields="")
+    finally:
+        plotly_baltic.load_tree = original_load_tree
+        plotly_baltic.ensure_node_label = original_ensure
+
+    assert '"label":"field_1"' in html
+    assert '"label":"field_-1"' in html
+
+
+def test_build_tree_plot_strips_braces_from_tip_fields_in_dropdown(tmp_path):
+    csv_path = tmp_path / "branch_snps.csv"
+    _write_branch_snps_csv(csv_path)
+
+    fake_tree = FakeTree()
+    fake_tree.tip_a.name = "tipA|Loc1|2024"
+    fake_tree.tip_b.name = "tipB|Loc2|2024-02"
+
+    original_load_tree = plotly_baltic.load_tree
+    original_ensure = plotly_baltic.ensure_node_label
+    try:
+        plotly_baltic.load_tree = lambda *_args, **_kwargs: fake_tree
+        plotly_baltic.ensure_node_label = lambda node: node.name
+        html = plotly_baltic.build_tree_plot(
+            "tree",
+            branch_snps_path=str(csv_path),
+            tip_fields="{sample}|{location}|{date}",
+        )
+    finally:
+        plotly_baltic.load_tree = original_load_tree
+        plotly_baltic.ensure_node_label = original_ensure
+
+    assert '"label":"sample"' in html
+    assert '"label":"location"' in html
+    assert '"label":"date"' in html
+    assert '"label":"{sample}"' not in html
+    assert '"label":"{location}"' not in html
+    assert '"label":"{date}"' not in html

@@ -94,10 +94,11 @@ def test_generate_tree_report_renders_template(tmp_path: Path) -> None:
 
     flags_csv = tmp_path / "flags.csv"
     with flags_csv.open("w", newline="") as handle:
-        writer = csv.DictWriter(handle, fieldnames=["mutation_type", "site", "mutation"])
+        writer = csv.DictWriter(handle, fieldnames=["mutation_type", "site", "mutation", "present_in", "mask_boolean"])
         writer.writeheader()
-        writer.writerow({"mutation_type": "convergent", "site": "100", "mutation": "A>G"})
-        writer.writerow({"mutation_type": "reversion", "site": "200", "mutation": "G>A"})
+        writer.writerow({"mutation_type": "convergent", "site": "100.0", "mutation": "A>G", "present_in": "Node1_Node2", "mask_boolean": True})
+        writer.writerow({"mutation_type": "reversion", "site": "200.0", "mutation": "G>A", "present_in": "Node2_Node3", "mask_boolean": False})
+        writer.writerow({"mutation_type": "adar", "site": "300.0", "mutation": "TC>TT", "present_in": "Node3_Node4", "mask_boolean": True})
 
     report_path = generate_phylo_report(
         outdir=str(tmp_path),
@@ -109,6 +110,34 @@ def test_generate_tree_report_renders_template(tmp_path: Path) -> None:
     assert "Raccoon tree-qc report" in html
     assert "Convergent mutations" in html
     assert "Reversions" in html
+    assert "Signatures of human immune editing" in html
+    assert "Primer: the slope is the estimated evolutionary rate" in html
+    assert "Slope (rate, subs/site/year):" in html
+    assert "tMRCA (x-intercept, decimal year):" in html
+    assert "R²:" in html
+    assert ">100<" in html
+    assert ">200<" in html
+    assert ">300<" in html
+    assert "100.0" not in html
+    assert "200.0" not in html
+    assert "300.0" not in html
+    assert "mask_boolean" not in html
+
+
+def test_generate_tree_report_root_to_tip_accepts_mixed_date_precision(tmp_path: Path) -> None:
+    treefile = tmp_path / "tree_mixed_dates.nwk"
+    treefile.write_text("(A|Loc1|2024:0.1,B|Loc2|2024-02:0.2,C|Loc3|2024-03-15:0.25);")
+
+    report_path = generate_phylo_report(
+        outdir=str(tmp_path),
+        treefile=str(treefile),
+        flags_csv=None,
+    )
+
+    html = Path(report_path).read_text()
+    assert "No root-to-tip distances available." not in html
+    assert "Slope (rate, subs/site/year):" in html
+    assert "tMRCA (x-intercept, decimal year):" in html
 
 
 def test_generate_mask_report_renders_template(tmp_path: Path) -> None:
