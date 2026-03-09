@@ -42,16 +42,6 @@ pip install -e .
 
 ## Quickstart
 
-```bash
-raccoon aln-qc examples/constructed_alignment.fasta -d outdir \
-	--genbank examples/constructed_reference.gb --reference-id ref
-```
-
-Outputs:
-
-- mask_sites.csv
-- alignment_qc_summary.txt
-
 ## CLI usage
 
 Show help:
@@ -59,36 +49,6 @@ Show help:
 ```bash
 raccoon --help
 ```
-
-Alignment QC:
-
-```bash
-raccoon aln-qc <alignment.fasta> -d outdir
-```
-
-With a GenBank reference for frame‑break detection:
-
-```bash
-raccoon aln-qc <alignment.fasta> -d outdir \
-  --genbank <reference.gb> --reference-id <ref_id>
-```
-
-Masking toggles (defaults are enabled):
-
-```bash
-raccoon aln-qc <alignment.fasta> -d outdir \
-  --no-mask-n-adjacent --no-mask-gap-adjacent
-```
-
-Key alignment options:
-
-- `--n-threshold`: fraction of Ns allowed per sequence before flagging.
-- `--cluster-window`: window size (bp) for clustered SNP detection.
-- `--cluster-count`: minimum SNPs within a window to flag as clustered.
-- `--mask-clustered/--no-mask-clustered`: include/exclude clustered SNPs.
-- `--mask-n-adjacent/--no-mask-n-adjacent`: include/exclude SNPs adjacent to Ns.
-- `--mask-gap-adjacent/--no-mask-gap-adjacent`: include/exclude SNPs adjacent to gaps.
-- `--mask-frame-break/--no-mask-frame-break`: include/exclude frame-breaking indels.
 
 Sequence QC:
 
@@ -159,6 +119,49 @@ Key sequence QC options:
 - `--seq-id-field-index`: 0-based field index for ID extraction (default: 0)
 - `--min-length`: minimum sequence length to keep
 - `--max-n-content`: maximum N content proportion to keep (e.g., 0.1 for 10%)
+
+
+
+```bash
+raccoon aln-qc examples/constructed_alignment.fasta -d outdir \
+	--genbank examples/constructed_reference.gb --reference-id ref
+```
+
+Outputs:
+
+- mask_sites.csv
+- alignment_qc_summary.txt
+
+
+Alignment QC:
+
+```bash
+raccoon aln-qc <alignment.fasta> -d outdir
+```
+
+With a GenBank reference for frame‑break detection:
+
+```bash
+raccoon aln-qc <alignment.fasta> -d outdir \
+  --genbank <reference.gb> --reference-id <ref_id>
+```
+
+Masking toggles (defaults are enabled):
+
+```bash
+raccoon aln-qc <alignment.fasta> -d outdir \
+  --no-mask-n-adjacent --no-mask-gap-adjacent
+```
+
+Key alignment options:
+
+- `--n-threshold`: fraction of Ns allowed per sequence before flagging.
+- `--cluster-window`: window size (bp) for clustered SNP detection.
+- `--cluster-count`: minimum SNPs within a window to flag as clustered.
+- `--no-flag-clustered`: exclude clustered SNPs.
+- `--no-flag-n-adjacent`: exclude SNPs adjacent to Ns.
+- `--no-flag-gap-adjacent`: exclude SNPs adjacent to gaps.
+- `--no-flag-frame-break`: exclude frame-breaking indels.
 
 
 Mask alignment:
