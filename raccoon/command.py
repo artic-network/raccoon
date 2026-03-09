@@ -5,6 +5,7 @@ import sys
 import os
 import argparse
 import logging
+import shlex
 from raccoon import __version__, _program
 from raccoon.commands import alignment as alignment_cmd, phylo as phylo_cmd, combine as combine_cmd, mask as mask_cmd
 from raccoon.utils import constants as rc
@@ -81,6 +82,7 @@ def main(sysargs=None):
         sysargs = sys.argv[1:]
     parser = build_parser()
     args = parser.parse_args(sysargs)
+    args.input_cmd_line = f"{_program} {shlex.join(sysargs)}" if sysargs else _program
 
     # configure logging
     level = logging.WARNING

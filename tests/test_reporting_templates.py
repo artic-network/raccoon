@@ -82,6 +82,9 @@ def test_generate_alignment_report_renders_template(tmp_path: Path) -> None:
     assert "Raccoon aln-qc report" in html
     assert "Alignment N-content" in html
     assert "Flagged sites" in html
+    assert "6. Diversity" in html
+    assert "smoothed over a 5-base window" in html
+    assert "theoretical range is 0 to" in html
     assert "clustered SNPs" in html
 
 

@@ -649,6 +649,7 @@ def main(args):
                 filter_failures=filter_failures,
                 metadata_issues=metadata_issues,
                 date_location_records=date_location_records,
+                input_cmd_line=getattr(args, "input_cmd_line", None),
             )
         except Exception:
             logging.exception("Failed to generate combine report")

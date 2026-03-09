@@ -235,6 +235,7 @@ def generate_combine_report(
     filter_failures: Optional[List[Dict[str, Any]]] = None,
     metadata_issues: Optional[List[Dict[str, Any]]] = None,
     date_location_records: Optional[List[Dict[str, Any]]] = None,
+    input_cmd_line: Optional[str] = None,
 ) -> str:
     records_summary = []
     ids_by_file = {}
@@ -535,7 +536,7 @@ def generate_combine_report(
         cmd_parts.extend(["--min-length", str(min_length)])
     if max_n_content is not None:
         cmd_parts.extend(["--max-n-content", str(max_n_content)])
-    cmd_line = " ".join(cmd_parts)
+    cmd_line = input_cmd_line or " ".join(cmd_parts)
 
     generated_stamp = datetime.now().strftime("%Y-%m-%d %H:%M")
     try:
@@ -596,6 +597,7 @@ def generate_alignment_report(
     mask_file: Optional[str] = None,
     flagged_criteria: Optional[str] = None,
     flagged_removal_criteria: Optional[str] = None,
+    input_cmd_line: Optional[str] = None,
     *,
     flag_clustered: bool = True,
     flag_n_adjacent: bool = True,
@@ -818,16 +820,34 @@ def generate_alignment_report(
                     p = c / total
                     h -= p * math.log2(p)
                 diversities.append(h)
-        fig = go.Figure(data=[go.Scatter(x=list(range(1, aln_len + 1)), y=diversities, mode="lines")])
-        fig.update_layout(xaxis_title="Position (bp)", yaxis_title="Shannon diversity", showlegend=False)
-        fig.update_yaxes(range=[0, max(diversities) if diversities else 0])
+        smoothed_diversities = (
+            pd.Series(diversities)
+            .rolling(window=5, min_periods=1, center=True)
+            .mean()
+            .tolist()
+        )
+        window_labels = []
+        for pos in range(1, aln_len + 1):
+            start = max(1, pos - 2)
+            end = min(aln_len, pos + 2)
+            window_labels.append(f"{start}-{end}")
+
+        fig = go.Figure(data=[go.Scatter(
+            x=list(range(1, aln_len + 1)),
+            y=smoothed_diversities,
+            mode="lines",
+            customdata=window_labels,
+            hovertemplate="Positions: %{customdata}<br>Shannon diversity: %{y:.4f}<extra></extra>",
+        )])
+        fig.update_layout(xaxis_title="Position (bp)", yaxis_title="Shannon diversity (5-bp smoothed)", showlegend=False)
+        fig.update_yaxes(range=[0, max(smoothed_diversities) if smoothed_diversities else 0])
         _apply_plot_style(fig)
         diversity_plot_html = _plot_div(fig)
 
     cmd_parts = ["raccoon", "aln-qc", os.path.basename(alignment_path)]
     if mask_file:
         cmd_parts.extend(["--mask-file", os.path.basename(mask_file)])
-    cmd_line = " ".join(cmd_parts)
+    cmd_line = input_cmd_line or " ".join(cmd_parts)
 
     if flagged_criteria is None:
         criteria_parts = []
@@ -882,6 +902,7 @@ def generate_mask_report(
     alignment_path: str,
     mask_file: Optional[str] = None,
     output_alignment: Optional[str] = None,
+    input_cmd_line: Optional[str] = None,
 ) -> str:
     lengths = []
     seq_ids = []
@@ -937,7 +958,7 @@ def generate_mask_report(
     cmd_parts = ["raccoon", "mask", os.path.basename(alignment_path)]
     if mask_file:
         cmd_parts.extend(["--mask-file", os.path.basename(mask_file)])
-    cmd_line = " ".join(cmd_parts)
+    cmd_line = input_cmd_line or " ".join(cmd_parts)
 
     outpath = os.path.join(outdir, "mask_report.html")
     context = {
@@ -970,7 +991,13 @@ def generate_mask_report(
     return outpath
 
 
-def generate_phylo_report(outdir: str, treefile: str, flags_csv: Optional[str] = None, tree_format: str = "auto") -> str:
+def generate_phylo_report(
+    outdir: str,
+    treefile: str,
+    flags_csv: Optional[str] = None,
+    tree_format: str = "auto",
+    input_cmd_line: Optional[str] = None,
+) -> str:
     my_tree = load_tree(treefile, tree_format=tree_format)
     tip_names = []
     tip_heights = []
@@ -1128,7 +1155,7 @@ def generate_phylo_report(outdir: str, treefile: str, flags_csv: Optional[str] =
     cmd_parts = ["raccoon", "tree-qc", "--phylogeny", os.path.basename(treefile)]
     if flags_csv:
         cmd_parts.extend(["--flags", os.path.basename(flags_csv)])
-    cmd_line = " ".join(cmd_parts)
+    cmd_line = input_cmd_line or " ".join(cmd_parts)
 
     outpath = os.path.join(outdir, "tree-qc_report.html")
     context = {

@@ -125,6 +125,7 @@ def main(args):
                 mask_file=summary.get(rc.KEY_MASK_FILE),
                 flagged_criteria=flagged_criteria,
                 flagged_removal_criteria=flagged_removal_criteria,
+                input_cmd_line=getattr(args, "input_cmd_line", None),
             )
         except Exception:
             logging.exception("Failed to generate alignment report")

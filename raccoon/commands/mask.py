@@ -49,6 +49,7 @@ def main(args):
                     alignment_path=alignment_path,
                     mask_file=mask_file,
                     output_alignment=output_path,
+                    input_cmd_line=getattr(args, "input_cmd_line", None),
                 )
             except Exception:
                 logging.exception("Failed to generate mask report")

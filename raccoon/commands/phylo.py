@@ -79,6 +79,7 @@ def main(args):
                 treefile=treefile,
                 flags_csv=flags_csv,
                 tree_format=args.tree_format,
+                input_cmd_line=getattr(args, "input_cmd_line", None),
             )
         except Exception:
             logging.exception("Failed to generate phylo report")
