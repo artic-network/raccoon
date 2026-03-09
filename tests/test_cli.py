@@ -22,7 +22,8 @@ def test_phylo_sets_func_callable():
     parser = build_parser()
     ns = parser.parse_args(['tree-qc', '--tree', 'tree'])
     assert callable(ns.func)
-    assert ns.tip_fields == 'sample|location|date'
+    assert ns.tip_fields == '{sample}|{location}|{date}'
+    assert ns.midpoint_root is False
 
 
 def test_combine_sets_func_callable():
