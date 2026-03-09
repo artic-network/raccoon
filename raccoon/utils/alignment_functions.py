@@ -245,6 +245,9 @@ def analyze_alignment(alignment, n_window=2, gap_window=1, snp_window=10, snp_co
     #         c = collections.Counter(col)
     #         majority[i] = c.most_common(1)[0][0]
 
+    # Build a mapping of sequence id to uppercased sequence for efficient lookups
+    seq_upper_map = {rec.id: str(rec.seq).upper() for rec in aln}
+
     # set up dicts keyed by sequence id and values a set of indexes
     unique_mutations = collections.defaultdict(set)
     snps_near_n = collections.defaultdict(set)
@@ -262,7 +265,7 @@ def analyze_alignment(alignment, n_window=2, gap_window=1, snp_window=10, snp_co
         for s in aln:
 
             #find the columns with variable sites
-            base = s.seq[i].upper()
+            base = seq_upper_map[s.id][i]
             if base in bases:
                 col.add(base)
                 
@@ -275,7 +278,7 @@ def analyze_alignment(alignment, n_window=2, gap_window=1, snp_window=10, snp_co
                 col_counter = collections.Counter() # key is base, value is count of sequences with that base at this position
                 
                 for s in aln:
-                    base = s.seq[i].upper()
+                    base = seq_upper_map[s.id][i]
                     col_dict[base].append(s.id)
                     if base in bases:
                         col_counter[base]+=1
@@ -288,14 +291,16 @@ def analyze_alignment(alignment, n_window=2, gap_window=1, snp_window=10, snp_co
                 
                 # if the snp is within a couple bases of an N, may be an issue with coverage/ alignment
                 for s in aln:
-                    # if the variant itself isn't N or a gap and isn't the majority base
-                    if s.seq[i] != "N" and s.seq[i] != majority and s.seq[i] != "-":
-                        if "N" in s.seq[i-n_window:i+n_window+1]: # check a window around the snp for Ns 
+                    
+                    # if the variant itself isn't N or a gap or the majority base, check for adjacent Ns
+                    if seq_upper_map[s.id][i] != "N" and seq_upper_map[s.id][i] != "-" and seq_upper_map[s.id][i] != majority:
+                        if "N" in seq_upper_map[s.id][i-n_window:i+n_window+1]: # check a window around the snp for Ns 
                             snps_near_n[s.id].add(i)
 
                 for s in aln:
-                    if s.seq[i] != "N" and s.seq[i] != majority and s.seq[i] != "-":
-                        if "-" in s.seq[i-gap_window:i+gap_window+1]:# check a window around the snp for gaps
+                    # if the variant itself isn't N or a gap or the majority base, check for adjacent gaps
+                    if seq_upper_map[s.id][i] != "N" and seq_upper_map[s.id][i] != "-" and seq_upper_map[s.id][i] != majority:
+                        if "-" in seq_upper_map[s.id][i-gap_window:i+gap_window+1]:# check a window around the snp for gaps
                             snps_near_gap[s.id].add(i)
 
         # identify clustered snps (e.g. x or more unique snps within y bases)
