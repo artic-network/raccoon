@@ -43,14 +43,15 @@ pip install -e .
 ## Quickstart
 
 ## CLI usage
-
 Show help:
 
 ```bash
 raccoon --help
 ```
 
-Sequence QC:
+### Sequence QC (`seq-qc`)
+
+Basic usage:
 
 ```bash
 raccoon seq-qc -f a.fasta b.fasta -o combined.fasta
@@ -67,130 +68,100 @@ raccoon seq-qc -f a.fasta b.fasta -o combined.fasta \
   --header-separator '|'
 ```
 
-With custom header template:
+With a custom header template:
 
 ```bash
-# Custom field order and custom fields
 raccoon seq-qc -f a.fasta b.fasta -o combined.fasta \
-  -m metadata.csv --header-fields "{sample}|{country}|{date}"
-
-# Multiple location levels
-raccoon seq-qc -f a.fasta b.fasta -o combined.fasta \
-  -m metadata.csv --header-fields "{sample}|{region}|{country}|{date}"
-
-# Custom separator
-raccoon seq-qc -f a.fasta b.fasta -o combined.fasta \
-  -m metadata.csv --header-fields "{sample}_{location}_{date}"
+  -m metadata.csv --header-fields "{id}|{country}|{date}"
 ```
 
-**Header field details:**
+Key options:
 
-- `--header-fields` uses a template format with special field names:
-  - `{id}`: the sequence ID (parsed from header using `--seq-id-field-index` and `--seq-id-delimiter`)
-  - Other fields come from your metadata CSV columns (e.g., `{location}`, `{date}`, `{country}`)
-  - Example template: `{id}|{country}|{date}`
-- Field values are automatically **sanitised** for safe use in phylogenetic tools (Newick parsers):
-  - **ID field**: preserved as-is (case-sensitive, not modified)
-  - **Other fields**: converted to **lowercase**, spaces/commas/colons/semicolons/parentheses replaced with underscores
-  - Multiple consecutive underscores are collapsed to single underscores
-  - ISO dates (YYYY-MM-DD) are not further sanitised
-  - Raccoon attempts to convert various date formats to ISO format, and reports ambiguous dates if not successful
-  - Example: `"New York, USA"` → `"new_york_usa"`, `"January 15, 2024"` → `"2024-01-15"`
-- When `--header-fields` is provided, it **takes precedence** over `--metadata-location-field` and `--metadata-date-field` arguments
-- Missing fields in metadata are output as empty values (e.g., `seq1||2024-01-01` if location is missing), allowing the pipeline to continue with issues logged to `seq_qc_metadata_issues.csv`
-- The special field `{parsed_id}` always maps to the parsed sequence ID (after `--seq-id-field-index` extraction)
-- **CSV parsing note**: Metadata fields containing delimiters (commas) must be properly quoted. If unescaped delimiters are detected, raccoon will exit with an informative error suggesting field quoting (e.g., `"New York, USA"` instead of `New York, USA`)
-
-
-**Default behavior:**
-- Default header template (no `--header-fields` specified): `{id}|{location}|{date}`
-- Default metadata ID column (no `--metadata-id-field` specified): `sample` (for backward compatibility with older metadata files)
-- Existing `--metadata-location-field` and `--metadata-date-field` args are respected when `--header-fields` is not provided
-
-Key sequence QC options:
-
-- `-m`,`--metadata`: metadata CSV file(s) for header harmonization
-- `--metadata-delimiter`: delimiter used in metadata CSV files (default: auto-detect)
-- `--metadata-id-field`: CSV column to match with sequence IDs (default: sample)
-- `--header-fields`: template for custom header format (e.g., `{id}|{country}|{date}`)
-- `--metadata-location-field`: CSV column for location (default: location; overridden by `--header-fields`)
-- `--metadata-date-field`: CSV column for date (default: date; overridden by `--header-fields`)
-- `--seq-id-delimiter`: delimiter for parsing IDs from input headers (default: |)
-- `--seq-id-field-index`: 0-based field index for ID extraction (default: 0)
+- `-m, --metadata`: metadata CSV file(s) for header harmonisation
+- `--metadata-delimiter`: metadata delimiter (default `,`; `.tsv` auto-detected)
+- `--metadata-id-field`: metadata ID column (default: `sample`)
+- `--metadata-location-field`: metadata location column (default: `location`)
+- `--metadata-date-field`: metadata date column (default: `date`)
+- `--header-fields`: template for custom headers (e.g. `{id}|{country}|{date}`)
+- `--header-separator`: separator used for non-template harmonised headers (default: `|`)
+- `--seq-id-delimiter`: delimiter for parsing IDs from input headers (default: `|`)
+- `--seq-id-field-index`: 0-based field index for parsed sequence ID (default: `0`)
 - `--min-length`: minimum sequence length to keep
-- `--max-n-content`: maximum N content proportion to keep (e.g., 0.1 for 10%)
+- `--max-n-content`: maximum N-content proportion to keep
 
+### Alignment QC (`aln-qc`)
 
-
-```bash
-raccoon aln-qc examples/constructed_alignment.fasta -d outdir \
-	--genbank examples/constructed_reference.gb --reference-id ref
-```
-
-Outputs:
-
-- mask_sites.csv
-- alignment_qc_summary.txt
-
-
-Alignment QC:
+Basic usage:
 
 ```bash
 raccoon aln-qc <alignment.fasta> -d outdir
 ```
 
-With a GenBank reference for frame‑break detection:
+With GenBank reference for frame-break checks:
 
 ```bash
 raccoon aln-qc <alignment.fasta> -d outdir \
   --genbank <reference.gb> --reference-id <ref_id>
 ```
 
-Masking toggles (defaults are enabled):
+Disable selected flag classes:
 
 ```bash
 raccoon aln-qc <alignment.fasta> -d outdir \
-  --no-mask-n-adjacent --no-mask-gap-adjacent
+  --no-flag-n-adjacent --no-flag-gap-adjacent
 ```
 
-Key alignment options:
+Key options:
 
-- `--n-threshold`: fraction of Ns allowed per sequence before flagging.
-- `--cluster-window`: window size (bp) for clustered SNP detection.
-- `--cluster-count`: minimum SNPs within a window to flag as clustered.
-- `--no-flag-clustered`: exclude clustered SNPs.
-- `--no-flag-n-adjacent`: exclude SNPs adjacent to Ns.
-- `--no-flag-gap-adjacent`: exclude SNPs adjacent to gaps.
-- `--no-flag-frame-break`: exclude frame-breaking indels.
+- `--max-n-content`: N-content threshold for flagging
+- `--cluster-window`: window size (bp) for clustered SNP detection
+- `--cluster-count`: minimum SNPs in-window to mark as clustered
+- `--no-flag-clustered`: skip clustered SNP flagging
+- `--no-flag-n-adjacent`: skip N-adjacent SNP flagging
+- `--no-flag-gap-adjacent`: skip gap-adjacent SNP flagging
+- `--no-flag-frame-break`: skip frame-breaking indel flagging
+- `--flag-removal-threshold`: mark sequence for removal above this flagged-site count
 
-
-Mask alignment:
+### Apply mask (`mask`)
 
 ```bash
-raccoon mask <alignment.fasta> --mask-file results/alignment_qc/mask_sites.csv -d results/alignment_qc
+raccoon mask <alignment.fasta> \
+  --mask-file results/alignment_qc/mask_sites.csv \
+  -d results/alignment_qc
 ```
 
-Key mask options:
+Key options:
 
-- `-o,--outfile`: output masked alignment file name
-- `-d,--outdir`: output directory (default: current directory)
-- `--mask-file`: mask CSV file from aln-qc
-- `-t,--sequence-type`: sequence type (nt/aa; default: nt)
+- `--mask-file`: mask CSV file from `aln-qc`
+- `--mask-character`: character to use for masking (default: `?`)
+- `-o, --outfile`: output masked alignment file name
+- `-d, --outdir`: output directory
+- `-t, --sequence-type`: `nt` or `aa` (default: `nt`)
 
+### Phylogenetic QC (`tree-qc`)
 
-Phylogenetic QC:
+Basic usage:
 
 ```bash
-raccoon tree-qc --phylogeny <treefile> -d outdir \
+raccoon tree-qc --tree <treefile> -d outdir \
   --alignment <alignment.fasta> --asr-state <treefile>.state \
   --run-adar --adar-window 300 --adar-min-count 3
 ```
 
-Key phylo options:
+Key options:
 
+- `-t, --tree`: input phylogeny file (required)
+- `--tree-format`: `auto`, `newick`, or `nexus`
 - `--assembly-refs`: assembly/reference FASTA used for mapping
 - `--outgroup-ids`: comma-separated outgroup sequence IDs
-- `--mask-file`: optional mask CSV file with sites to ignore
+- `--mask-file`: optional mask CSV with sites to ignore
+- `--tip-fields`: template for parsing tip-label fields
+- `--tip-field-delimiter`: delimiter used for tip field parsing
+- `--tip-date-field`: field name treated as date in tip parsing
+- `--midpoint-root`: midpoint-root tree for report visualisation (ignored with `--asr-state`)
+- `--long-branch-sd`: SD threshold for long-branch flagging
+- `--run-apobec`: run APOBEC3 checks
+- `--run-adar`: run ADAR checks
 ```
 
 See full CLI details in [docs/cli.md](docs/cli.md).

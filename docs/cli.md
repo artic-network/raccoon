@@ -2,145 +2,15 @@
 
 Use the `raccoon` top-level command with subcommands for different QC tasks.
 
-Examples:
-
-- Alignment QC
-  ```bash
-  raccoon aln-qc input_alignment.fasta -d outdir
-  ```
-
-- Phylogenetic QC
-  ```bash
-  raccoon tree-qc --phylogeny mytree --assembly-refs refs.fasta -d outdir --run-apobec
-  ```
-
-- Sequence QC
-  ```bash
-  raccoon seq-qc -f a.fasta b.fasta -o combined.fasta
-  ```
-
-Each subcommand has its own help available with `raccoon <subcommand> --help`.
-
-# raccoon CLI
-
-Use the `raccoon` top-level command with subcommands for different QC tasks.
-
-Top-level usage
+Top-level usage:
 
 ```bash
 raccoon <subcommand> [options]
 ```
 
-Run `raccoon <subcommand> --help` to see subcommand-specific options.
+Run `raccoon <subcommand> --help` for full command-specific help.
 
-aln-qc subcommand
-
-Purpose: run alignment quality-control checks and produce a mask file and summary.
-
-Basic usage:
-
-```bash
-raccoon aln-qc <alignment.fasta> -d outdir
-```
-
-Key options
-
-- `alignment` (positional): path to the input alignment (FASTA)
-- `-d, --outdir`: directory to write outputs (created if missing)
-- `-t, --sequence-type`: sequence type (nt/aa; default: nt)
-- `--genbank`: optional GenBank file containing CDS/features for frame-breaking indel checks
-- `--reference-id`: optional sequence id in the GenBank file used as reference mapping
-- `--n-threshold`: fraction of N allowed per sequence before flagged (default: 0.2)
-- `--cluster-window`: window size (bp) to search for clustered SNPs (default: 10)
-- `--cluster-count`: minimum number of SNPs within the window to be considered clustered (default: 3)
-- `--mask-clustered/--no-mask-clustered`: include/exclude clustered SNPs in mask output (default: include)
-- `--mask-n-adjacent/--no-mask-n-adjacent`: include/exclude SNPs adjacent to Ns in mask output (default: include)
-- `--mask-gap-adjacent/--no-mask-gap-adjacent`: include/exclude SNPs adjacent to gaps in mask output (default: include)
-- `--mask-frame-break/--no-mask-frame-break`: include/exclude frame-breaking indels in mask output (default: include)
-
-Mask output
-
-- The mask CSV now contains `flagged`, `type`, `minimum`, `maximum`, `length`, `present_in`, `note`.
-- `type` is either `site` (mask a single column) or `sequence_record` (remove sequence).
-- If a sequence has more than 20 flagged sites, it is emitted as a `sequence_record` entry and individual site rows for that sequence are omitted; the `note` column lists contributing sites.
-
-Behavior and exit codes
-
-- The command will try to create `--outdir` if it does not exist and will verify it is writable.
-- Optional input files (`--genbank`, `--reference-id`) are validated if provided.
-- Exit code `0` on success, `1` on validation/file errors, `2` on unexpected failures.
-
-Example
-
-```bash
-raccoon aln-qc data/sequences.fasta -d results/alignment_qc --genbank refs/ref.gb --reference-id NC_000000
-```
-
-Example with masking toggles
-
-```bash
-raccoon aln-qc data/sequences.fasta -d results/alignment_qc \
-  --genbank refs/ref.gb --reference-id NC_000000 \
-  --no-mask-n-adjacent --no-mask-gap-adjacent
-```
-
-mask subcommand
-
-Purpose: apply an aln-qc mask CSV to an alignment and write a masked FASTA.
-
-Basic usage:
-
-```bash
-raccoon mask data/alignment.fasta --mask-file results/alignment_qc/mask_sites.csv -d results/alignment_qc
-```
-
-Key options
-
-- `alignment` (positional): path to the input alignment (FASTA)
-- `--mask-file`: mask CSV from aln-qc
-- `-o, --outfile`: output masked alignment file name (default: <alignment>.masked.fasta)
-- `-d, --outdir`: output directory (default: .)
-- `-t, --sequence-type`: sequence type (nt/aa); uses N or X (default: nt)
-
-tree-qc subcommand
-
-Purpose: run phylogenetic QC (SNP anomaly checks, apobec analyses, plotting helpers).
-
-Basic usage:
-
-```bash
-raccoon tree-qc --phylogeny treefile.newick --assembly-refs refs.fasta -d outdir
-```
-
-Key options
-
-- `--phylogeny`: path to Newick tree file
-- `--assembly-refs`: path to assembly/reference FASTA used for mapping
-- `-d, --outdir`: directory to write outputs (created if missing)
-- `--outgroup-ids`: comma-separated list of outgroup sequence ids
-- `--mask-file`: optional mask CSV file with sites to ignore
-- `--height`: plotting height parameter (optional)
-- `--run-apobec`: flag to run APOBEC3-specific analyses
-- `--run-adar`: flag to run ADAR-specific analyses
-- `--adar-window`: max distance (bp) for ADAR cluster window (default: 300)
-- `--adar-min-count`: min ADAR sites in window to flag a branch (default: 3)
-- `--alignment`: alignment FASTA used with ASR state file
-- `--asr-state`: ancestral state reconstruction file (defaults to <tree>.state if present)
-- `--tree-format`: tree format (auto/newick/nexus)
-- `--long-branch-sd`: std dev threshold for long-branch flagging
-
-Behavior and exit codes
-
-- The command validates `--assembly-refs` and optional mask/tree files, and ensures `--outdir` is writable.
-- Exit code `0` on success, `1` on validation/file errors, `2` on unexpected failures.
-
-Example
-
-```bash
-raccoon tree-qc --phylogeny trees/rep.tree --assembly-refs data/refs.fasta -d results/phylo --run-apobec
-```
-
-seq-qc subcommand
+## `seq-qc` subcommand
 
 Purpose: combine one or more FASTA files into a single upper-case, unwrapped FASTA, with optional metadata-driven header harmonisation.
 
@@ -150,62 +20,141 @@ Basic usage:
 raccoon seq-qc -f a.fasta b.fasta -o combined.fasta
 ```
 
-Header harmonisation using metadata (backward compatible format):
+With metadata-driven headers:
 
 ```bash
 raccoon seq-qc -f a.fasta b.fasta -o combined.fasta \
-  --metadata metadata.csv \
-  --metadata-id-field id \
+  -m metadata.csv other_metadata.csv \
+  --metadata-id-field sample \
   --metadata-location-field location \
   --metadata-date-field date \
   --header-separator '|'
 ```
 
-Header harmonisation with custom template:
+With custom template fields:
 
 ```bash
-# Custom field order and custom fields from metadata
 raccoon seq-qc -f a.fasta b.fasta -o combined.fasta \
-  --metadata metadata.csv \
+  -m metadata.csv \
   --header-fields "{id}|{country}|{date}"
-
-# Multiple location levels
-raccoon seq-qc -f a.fasta b.fasta -o combined.fasta \
-  --metadata metadata.csv \
-  --header-fields "{id}|{region}|{country}|{date}"
-
-# Different separator
-raccoon seq-qc -f a.fasta b.fasta -o combined.fasta \
-  --metadata metadata.csv \
-  --header-fields "{id}:{location}:{date}"
 ```
 
-- `-f, --fasta`: input FASTA files (one or more; required)
+Key options:
+
+- `-f, --fasta`: input FASTA files (one or more)
 - `-o, --outfile`: output FASTA file (use `-` for stdout)
-- `--metadata`: one or more metadata CSVs used to harmonise headers
-- `--metadata-delimiter`: metadata delimiter (default: `,`; auto-detects `.tsv` files)
-- `--metadata-id-field`: metadata id column (default: `sample`)
-- `--header-fields`: template for custom header format (e.g. `{id}|{country}|{date}`); **takes precedence** over `--metadata-location-field` and `--metadata-date-field` if provided
-- `--metadata-location-field`: metadata location column (default: `location`; ignored if `--header-fields` is used)
-- `--metadata-date-field`: metadata date column (default: `date`; ignored if `--header-fields` is used)
-- `--header-separator`: deprecated; use `--header-fields` instead for custom separators (default: `|`)
-- `--seq-id-delimiter`: delimiter for parsing sequence IDs from input headers (default: `|`)
-- `--seq-id-field-index`: 0-based field index for ID extraction (default: `0`)
+- `-m, --metadata`: one or more metadata CSV files
+- `--metadata-delimiter`: metadata delimiter (default `,`; `.tsv` auto-detected)
+- `--metadata-id-field`: metadata ID column (default: `sample`)
+- `--metadata-location-field`: metadata location column (default: `location`)
+- `--metadata-date-field`: metadata date column (default: `date`)
+- `--header-fields`: template for custom headers (takes precedence over location/date field args)
+- `--header-separator`: separator used for non-template harmonised headers (default: `|`)
+- `--seq-id-delimiter`: delimiter for parsing IDs from input headers (default: `|`)
+- `--seq-id-field-index`: 0-based field index used for parsed sequence ID (default: `0`)
 - `--min-length`: minimum sequence length to keep
-- `--max-n-content`: maximum N content proportion to keep (e.g. `0.1`)
+- `--max-n-content`: maximum N-content proportion to keep
 
-Header field format and sanitization
+Notes:
 
-- `--header-fields` uses template syntax: `{field1}{sep}{field2}{sep}{field3}` where field names match your metadata CSV columns
-- Field values are **automatically sanitized**: converted to lowercase and spaces/special characters replaced with underscores
-  - Example: `"United Kingdom"` → `"united_kingdom"`, `"2024-01-01"` → `"2024-01-01"`
-- Missing metadata columns are output as empty values (e.g. `seq1||2024-01-01` if location is missing), keeping consistent numbers of fields in each header
-- The special field `{id}` always refers to the parsed sequence ID (after `--seq-id-field-index` extraction), not the metadata id column
-- When `--header-fields` is provided, `--metadata-location-field` and `--metadata-date-field` are ignored
+- `--header-fields` supports metadata column names in braces, e.g. `{id}|{region}|{date}`.
+- If `--header-fields` is provided, location/date-specific metadata field args are ignored.
 
-Output files
+## `aln-qc` subcommand
 
-When filtering or using metadata:
-- `seq_qc_filter_failures.csv`: sequences filtered by `--min-length` or `--max-n-content`
-- `seq_qc_metadata_issues.csv`: missing metadata rows or missing field values
-- `seq-qc_report.html`: summary report (if metadata provided)
+Purpose: run alignment quality-control checks and produce a mask file and summary.
+
+Basic usage:
+
+```bash
+raccoon aln-qc <alignment.fasta> -d outdir
+```
+
+With GenBank reference for frame-break checks:
+
+```bash
+raccoon aln-qc <alignment.fasta> -d outdir \
+  --genbank <reference.gb> --reference-id <ref_id>
+```
+
+Disable selected flag classes:
+
+```bash
+raccoon aln-qc <alignment.fasta> -d outdir \
+  --no-flag-n-adjacent --no-flag-gap-adjacent
+```
+
+Key options:
+
+- `alignment` (positional): input alignment (FASTA)
+- `-d, --outdir`: output directory
+- `-t, --sequence-type`: `nt` or `aa` (default: `nt`)
+- `--genbank`: GenBank file for frame-breaking indel checks
+- `--reference-id`: reference sequence ID used with GenBank features
+- `--max-n-content`: N-content threshold for flagging
+- `--cluster-window`: clustered SNP detection window size (bp)
+- `--cluster-count`: minimum SNP count in window for clustered flagging
+- `--no-flag-clustered`: skip clustered SNP flagging
+- `--no-flag-n-adjacent`: skip N-adjacent SNP flagging
+- `--no-flag-gap-adjacent`: skip gap-adjacent SNP flagging
+- `--no-flag-frame-break`: skip frame-breaking indel flagging
+- `--flag-removal-threshold`: mark sequence for removal above this flagged-site count
+
+## `mask` subcommand
+
+Purpose: apply an `aln-qc` mask CSV to an alignment and write a masked FASTA.
+
+Basic usage:
+
+```bash
+raccoon mask data/alignment.fasta \
+  --mask-file results/alignment_qc/mask_sites.csv \
+  -d results/alignment_qc
+```
+
+Key options:
+
+- `alignment` (positional): input alignment (FASTA)
+- `--mask-file`: mask CSV from `aln-qc`
+- `--mask-character`: character to use for masking (default: `?`)
+- `-o, --outfile`: output masked alignment file name
+- `-d, --outdir`: output directory (default: `.`)
+- `-t, --sequence-type`: `nt` or `aa` (default: `nt`)
+
+## `tree-qc` subcommand
+
+Purpose: run phylogenetic QC and generate an interactive tree report.
+
+Basic usage:
+
+```bash
+raccoon tree-qc --tree <treefile> -d outdir \
+  --alignment <alignment.fasta> --asr-state <treefile>.state \
+  --run-adar --adar-window 300 --adar-min-count 3
+```
+
+Key options:
+
+- `-t, --tree`: input tree file or basename (required)
+- `--tree-format`: `auto`, `newick`, or `nexus` (default: `auto`)
+- `-d, --outdir`: output directory
+- `--outgroup-ids`: comma-separated outgroup IDs
+- `--alignment`: alignment FASTA used with ASR state file
+- `--asr-state`: ancestral state reconstruction file
+- `--mask-file`: optional mask CSV file with sites to ignore
+- `--assembly-refs`: assembly/reference FASTA used for mapping
+- `--long-branch-sd`: SD threshold for long-branch flagging (default: `3.0`)
+- `--run-apobec`: run APOBEC3 phylo checks
+- `--run-adar`: run ADAR phylo checks
+- `--adar-window`: max distance (bp) for ADAR cluster window (default: `300`)
+- `--adar-min-count`: min ADAR sites in window to flag branch (default: `3`)
+- `--tip-fields`: template for parsing tip label fields
+- `--tip-field-delimiter`: delimiter for tip field parsing
+- `--tip-date-field`: field name treated as date in tip parsing
+- `--midpoint-root`: midpoint-root for report visualisation (applied only when `--asr-state` is not provided)
+- `--height`: optional figure height
+
+## Global options
+
+- `-v, --version`: show version and exit
+- `-V, --verbose`: increase logging verbosity (repeat for more detail)
