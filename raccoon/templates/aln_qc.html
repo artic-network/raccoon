@@ -9,7 +9,7 @@
         <li><a href="#reported">Flagged sites</a></li>
         <li><a href="#flagged">Location of flagged sites</a></li>
         <li><a href="#sequence-removals">Flagged sequences</a></li>
-        <li><a href="#diversity">Per-site diversity</a></li>
+        <li><a href="#diversity">Diversity</a></li>
       </ol>
     </div>
 
@@ -106,7 +106,16 @@
     </div>
 
     <div id="diversity" class="card">
-      <h3>6. Per-site diversity</h3>
+      <h3>6. Diversity</h3>
+      <p>
+        This plot shows sequence diversity across the alignment as Shannon diversity, smoothed over a 5-base window.
+      </p>
+      <p>
+        Shannon diversity summarizes how mixed the bases are at each alignment position: low values mean most sequences share the same base,
+        and higher values mean more diversity at a given position. For a column with possible states A/T/C/G (Ns and gaps are ignored), the theoretical range is 0 to log₂(4) ≈ 2.0.
+        <br>
+        High diversity can be a sign of true biological variation, but it can also indicate problematic sites with many sequencing errors or misalignments.
+      </p>
       {% if diversity_plot_html %}
         {{ diversity_plot_html | safe }}
       {% else %}
