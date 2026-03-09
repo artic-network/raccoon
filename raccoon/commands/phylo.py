@@ -97,6 +97,11 @@ def main(args):
         state_file = io.resolve_asr_state_file(getattr(args, 'asr_state', None), treefile)
         if getattr(args, 'asr_state', None) and not state_file:
             return 1
+
+        midpoint_root = bool(getattr(args, 'midpoint_root', False))
+        midpoint_root_for_report = midpoint_root and not bool(state_file)
+        if midpoint_root and state_file:
+            logging.info("--midpoint-root ignored because --asr-state was provided")
         
         config = {}
         config[KEY_OUTDIR] = outdir
@@ -138,6 +143,8 @@ def main(args):
                 flags_csv=flags_csv,
                 tree_format=args.tree_format,
                 tip_fields=tip_fields,
+                midpoint_root=midpoint_root_for_report,
+                outgroup_ids=outgroup_ids if outgroup_ids else None,
                 input_cmd_line=getattr(args, "input_cmd_line", None),
             )
         except Exception:

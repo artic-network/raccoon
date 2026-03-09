@@ -73,6 +73,7 @@ def build_parser():
     p.add_argument('--run-apobec', action='store_true', dest='run_apobec', help='Run APOBEC3 phylo checks')
     p.add_argument('--run-adar', action='store_true', dest='run_adar', help='Run ADAR phylo checks')
     p.add_argument('--tip-fields', default=rc.DEFAULT_TIP_FIELDS, dest='tip_fields', help=f'Template for parsing tip label fields for colouring (default: {rc.DEFAULT_TIP_FIELDS})')
+    p.add_argument('--midpoint-root', action='store_true', dest='midpoint_root', help='Midpoint-root tree for report visualization (applied only when --asr-state is not provided)')
     p.add_argument('--height', help='Figure height', dest='height', default=None)
     p.set_defaults(func=phylo_cmd.main)
 
