@@ -822,7 +822,7 @@ def generate_alignment_report(
                 diversities.append(h)
         smoothed_diversities = (
             pd.Series(diversities)
-            .rolling(window=5, min_periods=1, center=True)
+            .rolling(window=rc.DEFAULT_SMOOTHING_WINDOW, min_periods=1, center=True)
             .mean()
             .tolist()
         )
@@ -879,6 +879,7 @@ def generate_alignment_report(
         "sequence_removals_table": sequence_removals_table,
         "flagged_plot_html": flagged_plot_html,
         "diversity_plot_html": diversity_plot_html,
+        "smoothing_window": rc.DEFAULT_SMOOTHING_WINDOW,
         "datafiles": {
             "alignment": os.path.basename(alignment_path),
             "mask_file": os.path.basename(mask_file) if mask_file else "None",
