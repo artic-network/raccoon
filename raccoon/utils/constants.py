@@ -110,6 +110,7 @@ DEFAULT_METADATA_DELIMITER = ","
 
 DEFAULT_HEADER_SEPARATOR = "|"
 DEFAULT_HEADER_FIELDS = "{id}|{location}|{date}"
+DEFAULT_TIP_FIELDS = "sample|location|date"
 
 DEFAULT_OUTPUT_FILE = "combined.fasta"
 

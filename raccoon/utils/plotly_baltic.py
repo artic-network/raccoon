@@ -5,12 +5,15 @@ The code was inspired by the baltic library by Gytis Dudas (https://github.com/e
 from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
+from datetime import datetime
 
 import csv
 import os
+import re
 
 import plotly.graph_objects as go
 import plotly.io as pio
+import pandas as pd
 
 from .reconstruction_functions import load_tree, ensure_node_label
 
@@ -88,15 +91,62 @@ def _format_branch_snps(branch_key: str, snps: List[Dict[str, str]], max_rows: i
     return "<br>".join(lines)
 
 
-def _parse_label_traits(label: str) -> Dict[str, Any]:
+def _parse_tip_field_names(tip_fields: Optional[str]) -> List[str]:
+    if not tip_fields:
+        return []
+    parsed: List[str] = []
+    for field in str(tip_fields).split("|"):
+        name = field.strip()
+        if not name:
+            continue
+        if name.startswith("{") and name.endswith("}") and len(name) > 2:
+            name = name[1:-1].strip()
+        if name:
+            parsed.append(name)
+    return parsed
+
+
+def _parse_label_traits(label: str, tip_field_names: Optional[List[str]] = None) -> Dict[str, Any]:
     traits: Dict[str, Any] = {}
     if not label:
         return traits
     parts = [p.strip() for p in label.split("|")]
-    if len(parts) >= 2 and parts[1]:
-        traits.setdefault("location", parts[1])
-    if len(parts) >= 3 and parts[2]:
-        traits.setdefault("date", parts[2])
+
+    include_index_traits = not (tip_field_names or [])
+    if include_index_traits:
+        for idx, value in enumerate(parts):
+            if value:
+                traits.setdefault(f"field_{idx}", value)
+
+        if parts and parts[-1]:
+            traits.setdefault("field_-1", parts[-1])
+
+    for idx, field_name in enumerate(tip_field_names or []):
+        if idx < len(parts) and parts[idx]:
+            traits.setdefault(field_name, parts[idx])
+
+    # Convention: last header field is date, with flexible precision
+    raw_date = parts[-1] if parts else ""
+    if raw_date:
+        parsed_date = None
+        raw = raw_date.strip()
+        try:
+            parsed = pd.to_datetime(raw, errors="coerce")
+            if pd.notna(parsed):
+                parsed_date = parsed.to_pydatetime()
+        except Exception:
+            parsed_date = None
+
+        if parsed_date is not None:
+            if re.match(r"^\d{4}$", raw):
+                traits.setdefault("date", f"{parsed_date.year:04d}")
+            elif re.match(r"^\d{4}[-/]\d{2}$", raw):
+                traits.setdefault("date", f"{parsed_date.year:04d}-{parsed_date.month:02d}")
+            else:
+                traits.setdefault("date", parsed_date.date().isoformat())
+            traits.setdefault("year", str(parsed_date.year))
+        else:
+            traits.setdefault("date", raw)
     return traits
 
 
@@ -104,6 +154,7 @@ def build_tree_plot(
     treefile: str,
     tree_format: str = "auto",
     branch_snps_path: Optional[str] = None,
+    tip_fields: str = "sample|location|date",
 ) -> str:
     try:
         tree = load_tree(treefile, tree_format=tree_format)
@@ -152,13 +203,14 @@ def build_tree_plot(
     branch_hover_text: List[str] = []
 
     branch_snps = _read_branch_snps(branch_snps_path)
+    tip_field_names = _parse_tip_field_names(tip_fields)
 
     for obj in getattr(tree, "Objects", []):
         label = ensure_node_label(obj) or getattr(obj, "name", "") or ""
         traits = dict(getattr(obj, "traits", {}) or {})
         traits.setdefault("label", label)
         traits.setdefault("branch_type", getattr(obj, "branchType", ""))
-        traits.update(_parse_label_traits(label))
+        traits.update(_parse_label_traits(label, tip_field_names=tip_field_names))
 
         if getattr(obj, "is_leaflike", lambda: False)():
             if obj.x is None or obj.y is None:
@@ -194,9 +246,12 @@ def build_tree_plot(
         for key, value in traits.items():
             if value is not None and value != "":
                 color_keys.add(key)
-    preferred = ["location", "date", "branch_type"]
-    color_keys = preferred + sorted([k for k in color_keys if k not in preferred])
-    default_key = color_keys[0] if color_keys else "branch_type"
+    excluded_color_keys = {"label", "branch_type"}
+    preferred = ["date", "year", *tip_field_names]
+    if not tip_field_names:
+        preferred.extend(["field_1", "field_-1"])
+    color_keys = preferred + sorted([k for k in color_keys if k not in preferred and k not in excluded_color_keys])
+    default_key = color_keys[0] if color_keys else "__none__"
 
     palette = [
         "#4BA3A8",

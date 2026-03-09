@@ -4,6 +4,58 @@ import os
 import logging
 
 
+def _parse_tip_field_names(tip_fields):
+    parsed = []
+    for field in str(tip_fields or "").split("|"):
+        name = field.strip()
+        if not name:
+            continue
+        if name.startswith("{") and name.endswith("}") and len(name) > 2:
+            name = name[1:-1].strip()
+        if name:
+            parsed.append(name)
+    return parsed
+
+
+def _validate_tip_label_fields(treefile, tree_format, tip_fields):
+    field_names = _parse_tip_field_names(tip_fields)
+    if not field_names:
+        return False, "--tip-fields must define at least one field name"
+
+    expected_count = len(field_names)
+    from raccoon.utils.reconstruction_functions import load_tree, ensure_node_label
+
+    try:
+        tree = load_tree(treefile, tree_format=tree_format)
+    except Exception as exc:
+        return False, f"Could not parse tree for tip field validation: {exc}"
+
+    invalid = []
+    for node in getattr(tree, "Objects", []):
+        is_leaf = getattr(node, "branchType", "") == "leaf"
+        if not is_leaf and hasattr(node, "is_leaflike"):
+            try:
+                is_leaf = bool(node.is_leaflike())
+            except Exception:
+                is_leaf = False
+        if not is_leaf:
+            continue
+
+        label = ensure_node_label(node) or getattr(node, "name", "") or ""
+        parts = [p.strip() for p in label.split("|")]
+        if len(parts) < expected_count:
+            invalid.append(label)
+
+    if invalid:
+        examples = "; ".join(invalid[:3])
+        return False, (
+            f"Tip labels do not match --tip-fields '{tip_fields}' "
+            f"(expected >= {expected_count} fields). Example labels: {examples}"
+        )
+
+    return True, None
+
+
 def main(args):
     """Run phylogenetic QC.
 
@@ -53,6 +105,12 @@ def main(args):
         config[KEY_PHYLOGENY] = phylogeny_base
         config[KEY_RUN_APOBEC3_PHYLO] = args.run_apobec
 
+        tip_fields = getattr(args, 'tip_fields', None)
+        valid_tip_fields, tip_fields_error = _validate_tip_label_fields(treefile, args.tree_format, tip_fields)
+        if not valid_tip_fields:
+            logging.error(tip_fields_error)
+            return 1
+
         outgroup_ids = []
         if args.outgroup_ids:
             outgroup_ids = [x.strip() for x in args.outgroup_ids.split(',') if x.strip()]
@@ -79,6 +137,7 @@ def main(args):
                 treefile=treefile,
                 flags_csv=flags_csv,
                 tree_format=args.tree_format,
+                tip_fields=tip_fields,
                 input_cmd_line=getattr(args, "input_cmd_line", None),
             )
         except Exception:

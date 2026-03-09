@@ -1106,6 +1106,7 @@ def generate_phylo_report(
     treefile: str,
     flags_csv: Optional[str] = None,
     tree_format: str = "auto",
+    tip_fields: str = "sample|location|date",
     input_cmd_line: Optional[str] = None,
 ) -> str:
     my_tree = load_tree(treefile, tree_format=tree_format)
@@ -1136,6 +1137,7 @@ def generate_phylo_report(
     convergent_table = None
     reversion_table = None
     immune_editing_table = None
+    root_to_tip_stats = None
     if flags_df is not None and not flags_df.empty and "present_in" in flags_df.columns:
         def _merge_present_in(frame: pd.DataFrame) -> pd.DataFrame:
             if frame.empty:
@@ -1152,13 +1154,32 @@ def generate_phylo_report(
             merged = frame.groupby(cols, dropna=False, as_index=False).agg(aggregations)
             return merged
 
+        def _format_tree_flag_table(frame: pd.DataFrame) -> pd.DataFrame:
+            if frame is None or frame.empty:
+                return frame
+            table = frame.copy()
+            if "site" in table.columns:
+                site_numeric = pd.to_numeric(table["site"], errors="coerce")
+                if site_numeric.notna().all():
+                    table["site"] = site_numeric.astype(int)
+            if "mask_boolean" in table.columns:
+                table = table.drop(columns=["mask_boolean"])
+            preferred_order = [
+                c for c in ["site", "mutation_type", "present_in", "mutation", "branches"] if c in table.columns
+            ]
+            remaining = [c for c in table.columns if c not in preferred_order]
+            return table[preferred_order + remaining]
+
         convergent = flags_df[flags_df[rc.COL_MUTATION_TYPE].str.contains(rc.MUTATION_TYPE_CONVERGENT, case=False, na=False)]
         convergent = _merge_present_in(convergent)
+        convergent = _format_tree_flag_table(convergent)
         convergent_table = _table_context(convergent)
         reversion = flags_df[flags_df[rc.COL_MUTATION_TYPE].str.contains(rc.MUTATION_TYPE_REVERSION, case=False, na=False)]
         reversion = _merge_present_in(reversion)
+        reversion = _format_tree_flag_table(reversion)
         reversion_table = _table_context(reversion)
         immune = flags_df[flags_df[rc.COL_MUTATION_TYPE].str.contains(rc.MUTATION_TYPE_IMMUNE_EDITING, case=False, na=False)]
+        immune = _format_tree_flag_table(immune)
         immune_editing_table = _table_context(immune)
 
     generated_stamp = datetime.now().strftime("%Y-%m-%d %H:%M")
@@ -1169,30 +1190,46 @@ def generate_phylo_report(
 
     root_to_tip_plot = "<p>No root-to-tip distances available.</p>"
     if tip_heights and tip_dates:
-        date_series = pd.to_datetime(pd.Series(tip_dates), errors="coerce")
+        parsed_dates = [_parse_flexible_date(date_val) for date_val in tip_dates]
+        date_series = pd.Series(parsed_dates, dtype="datetime64[ns]")
         mask = date_series.notna()
         if mask.any():
             x_dates = date_series[mask]
             y_heights = np.array(tip_heights)[mask.values]
-            x_num = x_dates.map(pd.Timestamp.toordinal).astype(float).values
-            if len(x_num) >= 2:
-                slope, intercept = np.polyfit(x_num, y_heights, 1)
-                y_hat = slope * x_num + intercept
+            x_decimal_year = np.array([
+                d.year + ((d.dayofyear - 1) / (366 if d.is_leap_year else 365))
+                for d in x_dates
+            ], dtype=float)
+            if len(x_decimal_year) >= 2:
+                slope, intercept = np.polyfit(x_decimal_year, y_heights, 1)
+                y_hat = slope * x_decimal_year + intercept
+                corr_matrix = np.corrcoef(x_decimal_year, y_heights)
+                corr_coeff = float(corr_matrix[0, 1]) if corr_matrix.shape == (2, 2) else float("nan")
+                if np.isnan(corr_coeff):
+                    corr_coeff = 0.0
+                r_squared = corr_coeff ** 2
+                if slope != 0:
+                    tmrca_decimal = -intercept / slope
+                    tmrca_label = f"{tmrca_decimal:.3f}"
+                else:
+                    tmrca_decimal = None
+                    tmrca_label = "n/a"
                 resid = y_heights - y_hat
-                n = len(x_num)
+                n = len(x_decimal_year)
                 s_err = np.sqrt(np.sum(resid ** 2) / max(n - 2, 1))
-                x_mean = np.mean(x_num)
-                s_xx = np.sum((x_num - x_mean) ** 2) or 1.0
-                ci = 3.0 * s_err * np.sqrt(1 / n + (x_num - x_mean) ** 2 / s_xx)
+                x_mean = np.mean(x_decimal_year)
+                s_xx = np.sum((x_decimal_year - x_mean) ** 2) or 1.0
+                ci = 3.0 * s_err * np.sqrt(1 / n + (x_decimal_year - x_mean) ** 2 / s_xx)
                 upper = y_hat + ci
                 lower = y_hat - ci
                 outside = (y_heights > upper) | (y_heights < lower)
-                order = np.argsort(x_num)
+                order = np.argsort(x_decimal_year)
                 x_dates = x_dates.iloc[order]
                 y_heights = y_heights[order]
                 y_hat = y_hat[order]
                 upper = upper[order]
                 lower = lower[order]
+                x_decimal_year = x_decimal_year[order]
 
                 fig = go.Figure()
                 fig.add_trace(go.Scatter(
@@ -1204,8 +1241,8 @@ def generate_phylo_report(
                     hovertemplate="%{text}<br>Date: %{x|%Y-%m-%d}<br>Distance: %{y:.4f}<extra></extra>",
                     name="Tips",
                 ))
-                x_min = float(x_num.min())
-                x_max = float(x_num.max())
+                x_min = float(x_decimal_year.min())
+                x_max = float(x_decimal_year.max())
                 x_line = [x_dates.min(), x_dates.max()]
                 y_line = [slope * x_min + intercept, slope * x_max + intercept]
                 fig.add_trace(go.Scatter(
@@ -1214,7 +1251,13 @@ def generate_phylo_report(
                     mode="lines",
                     line=dict(color="#7A6BB1"),
                     hoverinfo="skip",
-                    name="Regression",
+                    name=(
+                        f"Regression<br>"
+                        f"Slope (subs/site/year): {slope:.2e}<br>"
+                        f"tMRCA (decimal year): {tmrca_label}<br>"
+                        f"R²: {r_squared:.3f}<br>"
+                        f"r: {corr_coeff:.3f}"
+                    ),
                 ))
                 fig.add_trace(go.Scatter(
                     x=x_dates,
@@ -1238,10 +1281,18 @@ def generate_phylo_report(
                     xaxis_title="Date",
                     yaxis_title="Root-to-tip distance",
                     yaxis_tickformat=".1e",
-                    showlegend=False,
+                    showlegend=True,
+                    legend=dict(valign="top"),
                 )
                 _apply_plot_style(fig)
                 root_to_tip_plot = _plot_div(fig)
+                root_to_tip_stats = {
+                    "slope": slope,
+                    "tmrca": tmrca_label,
+                    "r_squared": r_squared,
+                    "correlation": corr_coeff,
+                    "slope_units": "substitutions/site/year",
+                }
 
     mutation_types_plot = "<p>No mutation types available.</p>"
     if flags_df is not None and not flags_df.empty and rc.COL_MUTATION_TYPE in flags_df:
@@ -1260,6 +1311,7 @@ def generate_phylo_report(
         treefile,
         tree_format=tree_format,
         branch_snps_path=branch_snps_path,
+        tip_fields=tip_fields,
     )
 
     cmd_parts = ["raccoon", "tree-qc", "--phylogeny", os.path.basename(treefile)]
@@ -1277,6 +1329,7 @@ def generate_phylo_report(
         "subtitle": "Phylogenetic tree quality assessment, with temporal signal evaluation and convergence/reversion flag summaries if ancestral state files available.",
         "tree_plot_html": tree_plot_html,
         "root_to_tip_plot_html": root_to_tip_plot,
+        "root_to_tip_stats": root_to_tip_stats,
         "convergent_table": convergent_table,
         "reversion_table": reversion_table,
         "immune_editing_table": immune_editing_table,
