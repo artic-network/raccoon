@@ -128,34 +128,42 @@ def _parse_label_traits(label: str, tip_field_names: Optional[List[str]] = None)
         if field_name.lower() in {"date", "dates"}:
             date_field_index = idx
 
-    raw_date = ""
+    date_candidates: List[str] = []
     if date_field_index is not None and 0 <= date_field_index < len(parts):
-        raw_date = parts[date_field_index]
-    elif include_index_traits and parts:
-        # When no tip field template is available, preserve the previous
-        # convention of trying the last field as a date-like value.
-        raw_date = parts[-1]
+        candidate = parts[date_field_index].strip()
+        if candidate:
+            date_candidates.append(candidate)
 
-    if raw_date:
-        parsed_date = None
-        raw = raw_date.strip()
+    # Preserve legacy behaviour of trying the final field as date-like when:
+    # - no template fields were supplied, OR
+    # - labels contain multiple fields and named-date parsing did not succeed.
+    # This restores year/date derivation for labels such as "id|loc|cluster|2024"
+    # while still avoiding synthetic date/year traits for single-field IDs.
+    if parts and (include_index_traits or len(parts) > 1):
+        trailing = parts[-1].strip()
+        if trailing and trailing not in date_candidates:
+            date_candidates.append(trailing)
+
+    parsed_date = None
+    parsed_raw = ""
+    for raw in date_candidates:
         try:
             parsed = pd.to_datetime(raw, errors="coerce")
             if pd.notna(parsed):
                 parsed_date = parsed.to_pydatetime()
+                parsed_raw = raw
+                break
         except Exception:
-            parsed_date = None
+            continue
 
-        if parsed_date is not None:
-            if re.match(r"^\d{4}$", raw):
-                traits.setdefault("date", f"{parsed_date.year:04d}")
-            elif re.match(r"^\d{4}[-/]\d{2}$", raw):
-                traits.setdefault("date", f"{parsed_date.year:04d}-{parsed_date.month:02d}")
-            else:
-                traits.setdefault("date", parsed_date.date().isoformat())
-            traits.setdefault("year", str(parsed_date.year))
+    if parsed_date is not None:
+        if re.match(r"^\d{4}$", parsed_raw):
+            traits.setdefault("date", f"{parsed_date.year:04d}")
+        elif re.match(r"^\d{4}[-/]\d{2}$", parsed_raw):
+            traits.setdefault("date", f"{parsed_date.year:04d}-{parsed_date.month:02d}")
         else:
-            traits.setdefault("date", raw)
+            traits.setdefault("date", parsed_date.date().isoformat())
+        traits.setdefault("year", str(parsed_date.year))
     return traits
 
 

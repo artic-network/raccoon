@@ -7,4 +7,4 @@ and APOBEC3 edits.
 """
 
 _program = "raccoon"
-__version__ = "1.0.1"
+__version__ = "1.0.2"
