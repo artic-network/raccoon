@@ -272,34 +272,24 @@ def _extract_date_from_tip_label(
     # Parse field names from template
     field_names = _parse_tip_field_names(tip_fields)
     
-    # Determine which field contains the date
+    # Step 1: try the explicitly-named date field from the template
     date_field_name = tip_date_field or "date"
     date_index = -1
-    
     if field_names:
-        # Look for the date field by name
         for idx, field_name in enumerate(field_names):
-            if field_name.lower() in [date_field_name.lower(), "dates"]:
+            if field_name.lower() in (date_field_name.lower(), "dates"):
                 date_index = idx
                 break
-        # If not found by name, use last field as fallback (convention)
-        if date_index == -1:
-            date_index = len(field_names) - 1
-    else:
-        # No template provided, use last field as fallback
-        date_index = len(parts) - 1
-    
-    # Extract date value
-    if 0 <= date_index < len(parts):
+
+    if date_index != -1 and 0 <= date_index < len(parts):
         raw_date = parts[date_index]
         if raw_date:
             parsed_dt = _parse_flexible_date(raw_date)
             if parsed_dt is not None:
                 precision = _detect_date_precision(raw_date)
                 return raw_date, parsed_dt, precision
-    
-    # Fallback: if extraction failed and we didn't already try the last field,
-    # try the last field as a final attempt
+
+    # Step 2: fall back to the last field of the actual label
     last_index = len(parts) - 1
     if last_index >= 0 and last_index != date_index:
         raw_date = parts[last_index]
@@ -308,7 +298,7 @@ def _extract_date_from_tip_label(
             if parsed_dt is not None:
                 precision = _detect_date_precision(raw_date)
                 return raw_date, parsed_dt, precision
-    
+
     return None, None, 'day'
 
 
@@ -1239,6 +1229,22 @@ def generate_phylo_report(
                 tip_dates_parsed.append(parsed_date)
                 tip_date_precisions.append(precision)
 
+    # Partition tips into those with and without parseable dates
+    tips_missing_dates = [
+        {"tip": label}
+        for label, parsed in zip(tip_names, tip_dates_parsed)
+        if parsed is None
+    ]
+    tips_with_dates_count = len(tip_names) - len(tips_missing_dates)
+    if tips_missing_dates:
+        import logging as _logging
+        _logging.warning(
+            "%d of %d tip(s) could not be assigned a date and will be excluded "
+            "from root-to-tip regression.",
+            len(tips_missing_dates),
+            len(tip_names),
+        )
+
     flags_df = None
     if flags_csv and os.path.exists(flags_csv):
         try:
@@ -1451,12 +1457,17 @@ def generate_phylo_report(
         "summary": {
             "tips": len(tip_names),
             "tree_height": round(getattr(my_tree, "treeHeight", "n/a"), 4),
+            "tips_with_dates": tips_with_dates_count,
+            "tips_missing_dates": len(tips_missing_dates),
         },
         "subtitle": "Phylogenetic tree quality assessment, with temporal signal evaluation and convergence/reversion flag summaries if ancestral state files available.",
         "tree_rooting_method": tree_rooting_method,
         "tree_plot_html": tree_plot_html,
         "root_to_tip_plot_html": root_to_tip_plot,
         "root_to_tip_stats": root_to_tip_stats,
+        "tips_missing_dates_table": _table_context(pd.DataFrame(tips_missing_dates)) if tips_missing_dates else None,
+        "tips_missing_dates_count": len(tips_missing_dates),
+        "tips_with_dates_count": tips_with_dates_count,
         "convergent_table": convergent_table,
         "reversion_table": reversion_table,
         "immune_editing_table": immune_editing_table,

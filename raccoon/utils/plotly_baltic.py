@@ -111,6 +111,7 @@ def _parse_label_traits(label: str, tip_field_names: Optional[List[str]] = None)
     if not label:
         return traits
     parts = [p.strip() for p in label.split("|")]
+    date_field_index: Optional[int] = None
 
     include_index_traits = not (tip_field_names or [])
     if include_index_traits:
@@ -124,9 +125,17 @@ def _parse_label_traits(label: str, tip_field_names: Optional[List[str]] = None)
     for idx, field_name in enumerate(tip_field_names or []):
         if idx < len(parts) and parts[idx]:
             traits.setdefault(field_name, parts[idx])
+        if field_name.lower() in {"date", "dates"}:
+            date_field_index = idx
 
-    # Convention: last header field is date, with flexible precision
-    raw_date = parts[-1] if parts else ""
+    raw_date = ""
+    if date_field_index is not None and 0 <= date_field_index < len(parts):
+        raw_date = parts[date_field_index]
+    elif include_index_traits and parts:
+        # When no tip field template is available, preserve the previous
+        # convention of trying the last field as a date-like value.
+        raw_date = parts[-1]
+
     if raw_date:
         parsed_date = None
         raw = raw_date.strip()
@@ -247,9 +256,9 @@ def build_tree_plot(
             if value is not None and value != "":
                 color_keys.add(key)
     excluded_color_keys = {"label", "branch_type"}
-    preferred = ["date", "year", *tip_field_names]
+    preferred = [key for key in ["date", "year", *tip_field_names] if key in color_keys]
     if not tip_field_names:
-        preferred.extend(["field_1", "field_-1"])
+        preferred.extend([key for key in ["field_1", "field_-1"] if key in color_keys])
     color_keys = preferred + sorted([k for k in color_keys if k not in preferred and k not in excluded_color_keys])
     default_key = color_keys[0] if color_keys else "__none__"
 

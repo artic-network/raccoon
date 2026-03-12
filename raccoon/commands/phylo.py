@@ -18,44 +18,6 @@ def _parse_tip_field_names(tip_fields, tip_field_delimiter="|"):
     return parsed
 
 
-def _validate_tip_label_fields(treefile, tree_format, tip_fields, tip_field_delimiter="|"):
-    field_names = _parse_tip_field_names(tip_fields, tip_field_delimiter=tip_field_delimiter)
-    if not field_names:
-        return False, "--tip-fields must define at least one field name"
-
-    expected_count = len(field_names)
-    from raccoon.utils.reconstruction_functions import load_tree, ensure_node_label
-
-    try:
-        tree = load_tree(treefile, tree_format=tree_format)
-    except Exception as exc:
-        return False, f"Could not parse tree for tip field validation: {exc}"
-
-    invalid = []
-    for node in getattr(tree, "Objects", []):
-        is_leaf = getattr(node, "branchType", "") == "leaf"
-        if not is_leaf and hasattr(node, "is_leaflike"):
-            try:
-                is_leaf = bool(node.is_leaflike())
-            except Exception:
-                is_leaf = False
-        if not is_leaf:
-            continue
-
-        label = ensure_node_label(node) or getattr(node, "name", "") or ""
-        parts = [p.strip() for p in label.split(tip_field_delimiter)]
-        if len(parts) < expected_count:
-            invalid.append(label)
-
-    if invalid:
-        examples = "; ".join(invalid[:3])
-        return False, (
-            f"Tip labels do not match --tip-fields '{tip_fields}' "
-            f"(expected >= {expected_count} fields). Example labels: {examples}"
-        )
-
-    return True, None
-
 
 def _detect_biophylo_format(treefile: str, tree_format: str = "auto") -> str:
     if tree_format in {"newick", "nexus"}:
@@ -138,15 +100,10 @@ def main(args):
         if midpoint_root and args.outgroup_ids:
             logging.info("--midpoint-root ignored because --outgroup-ids was provided")
         
-        # Parse and validate tip label fields
+        # Parse tip label fields
         tip_field_delimiter = getattr(args, 'tip_field_delimiter', rc.DEFAULT_HEADER_SEPARATOR)
         tip_date_field = getattr(args, 'tip_date_field', rc.DEFAULT_DATE_FIELD)
-
         tip_fields = getattr(args, 'tip_fields', rc.DEFAULT_HEADER_FIELDS)
-        valid_tip_fields, tip_fields_error = _validate_tip_label_fields(treefile, args.tree_format, tip_fields)
-        if not valid_tip_fields:
-            logging.error(tip_fields_error)
-            return 1
 
         outgroup_ids = []
         if args.outgroup_ids:

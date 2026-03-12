@@ -362,3 +362,102 @@ def test_generate_mask_report_renders_template(tmp_path: Path) -> None:
     assert "Raccoon mask report" in html
     assert "Masked sites by sequence" in html
     assert "Mask file entries" in html
+
+
+def test_generate_tree_report_shows_missing_dates_table_for_undateable_tips(tmp_path: Path) -> None:
+    """Tips with no parseable date appear in a missing-dates table in the report."""
+    # tip C has no date field — three parts but last field not parseable as date
+    treefile = tmp_path / "tree_partial_dates.nwk"
+    treefile.write_text("(A|Loc|2024-01-01:0.1,(B|Loc|justAnID:0.15,C|Loc|alsoNotADate:0.2):0.05);")
+
+    report_path = generate_phylo_report(
+        outdir=str(tmp_path),
+        treefile=str(treefile),
+        flags_csv=None,
+        outgroup_ids=None,
+        tip_fields="{id}|{location}|{date}",
+    )
+
+    html = Path(report_path).read_text()
+    assert "Raccoon tree-qc report" in html
+    assert "Tips missing date information" in html
+    assert "justAnID" in html or "alsoNotADate" in html
+
+
+def test_generate_tree_report_single_field_tips_no_crash(tmp_path: Path) -> None:
+    """Report generation must not crash when all tip labels are plain IDs (no date field)."""
+    treefile = tmp_path / "tree_ids.nwk"
+    treefile.write_text("(sampleA:0.1,sampleB:0.2,sampleC:0.15);")
+
+    report_path = generate_phylo_report(
+        outdir=str(tmp_path),
+        treefile=str(treefile),
+        flags_csv=None,
+        outgroup_ids=None,
+    )
+
+    html = Path(report_path).read_text()
+    assert "Raccoon tree-qc report" in html
+    # Root-to-tip requires dates — should gracefully show the "not available" message
+    assert "No root-to-tip distances available." in html
+    # Summary should still report tip count
+    assert "Tips:" in html
+
+
+def test_generate_tree_report_mixed_field_counts_uses_partial_dates(tmp_path: Path) -> None:
+    """Mixed tip field counts should keep dated tips and list undated tips."""
+    treefile = tmp_path / "tree_mixed_field_counts.nwk"
+    treefile.write_text("(A|LocA|2024-01-01:0.1,B|2024-02-01:0.15,C:0.2);")
+
+    report_path = generate_phylo_report(
+        outdir=str(tmp_path),
+        treefile=str(treefile),
+        flags_csv=None,
+        outgroup_ids=None,
+    )
+
+    html = Path(report_path).read_text()
+    # Two tips have parseable dates (A via named date field, B via last-field fallback)
+    assert "Slope (rate, subs/site/year):" in html
+    # Undated tip should be captured in missing-dates section
+    assert "Tips missing date information" in html
+    assert ">C<" in html
+
+
+def test_generate_tree_report_custom_date_field_with_missing_middle_field(tmp_path: Path) -> None:
+    """With custom tip_fields, empty date field should be treated as missing and excluded."""
+    treefile = tmp_path / "tree_custom_fields_missing_date.nwk"
+    treefile.write_text("(A|2024-01-01|LocA:0.1,B||LocB:0.15,C|2024-03|LocC:0.2);")
+
+    report_path = generate_phylo_report(
+        outdir=str(tmp_path),
+        treefile=str(treefile),
+        flags_csv=None,
+        tip_fields="sample|date|location",
+        outgroup_ids=None,
+    )
+
+    html = Path(report_path).read_text()
+    # A and C remain usable for root-to-tip
+    assert "Slope (rate, subs/site/year):" in html
+    # B is missing date and should be reported
+    assert "Tips missing date information" in html
+    assert "B||LocB" in html
+
+
+def test_generate_tree_report_all_incorrect_date_formats_shows_no_regression(tmp_path: Path) -> None:
+    """If no tips have parseable dates, root-to-tip regression is unavailable."""
+    treefile = tmp_path / "tree_bad_dates.nwk"
+    treefile.write_text("(A|LocA|NotADate:0.1,B|LocB|stillBad:0.2,C|LocC|abc123:0.15);")
+
+    report_path = generate_phylo_report(
+        outdir=str(tmp_path),
+        treefile=str(treefile),
+        flags_csv=None,
+        outgroup_ids=None,
+    )
+
+    html = Path(report_path).read_text()
+    assert "No root-to-tip distances available." in html
+    assert "Tips missing date information" in html
+    assert "(3)" in html

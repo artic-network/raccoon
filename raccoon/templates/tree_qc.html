@@ -17,6 +17,8 @@
       <h3>1. Summary</h3>
       <p>Tips: {{ summary.tips }}</p>
       <p>Tree height: {{ summary.tree_height }}</p>
+      <p>Tips with date information: {{ summary.tips_with_dates }} / {{ summary.tips }}
+        {%- if summary.tips_missing_dates > 0 %} &mdash; <strong>{{ summary.tips_missing_dates }} tip(s) missing date and excluded from root-to-tip</strong>{% endif %}</p>
     </div>
 
     <div id="tree" class="card">
@@ -75,6 +77,35 @@
         {{ root_to_tip_plot_html | safe }}
       {% else %}
         <p>No root-to-tip regression plot available.</p>
+      {% endif %}
+      {% if tips_missing_dates_table %}
+        <div style="margin-top:1.2rem;">
+          <h4>Tips missing date information ({{ tips_missing_dates_count }})</h4>
+          <p>The following tips could not be assigned a date from the tip label (via the <code>--tip-fields</code> date field or the last field of the label).
+          They are excluded from root-to-tip regression.
+          {% if tips_with_dates_count > 0 %}Root-to-tip is plotted using the remaining {{ tips_with_dates_count }} dated tip(s).{% endif %}
+          </p>
+          <div class="table-wrap table-scroll">
+            <table class="datatable">
+              <thead>
+                <tr>
+                  {% for header in tips_missing_dates_table.headers %}
+                    <th>{{ header }}</th>
+                  {% endfor %}
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in tips_missing_dates_table.rows %}
+                  <tr>
+                    {% for cell in row %}
+                      <td>{{ cell }}</td>
+                    {% endfor %}
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
       {% endif %}
     </div>
 

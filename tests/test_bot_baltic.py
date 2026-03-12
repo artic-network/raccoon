@@ -156,3 +156,30 @@ def test_build_tree_plot_strips_braces_from_tip_fields_in_dropdown(tmp_path):
     assert '"label":"{sample}"' not in html
     assert '"label":"{location}"' not in html
     assert '"label":"{date}"' not in html
+
+
+def test_build_tree_plot_with_single_field_ids_does_not_invent_date_traits(tmp_path):
+    csv_path = tmp_path / "branch_snps.csv"
+    _write_branch_snps_csv(csv_path)
+
+    fake_tree = FakeTree()
+    fake_tree.tip_a.name = "tipA"
+    fake_tree.tip_b.name = "tipB"
+
+    original_load_tree = plotly_baltic.load_tree
+    original_ensure = plotly_baltic.ensure_node_label
+    try:
+        plotly_baltic.load_tree = lambda *_args, **_kwargs: fake_tree
+        plotly_baltic.ensure_node_label = lambda node: node.name
+        html = plotly_baltic.build_tree_plot(
+            "tree",
+            branch_snps_path=str(csv_path),
+            tip_fields="{id}",
+        )
+    finally:
+        plotly_baltic.load_tree = original_load_tree
+        plotly_baltic.ensure_node_label = original_ensure
+
+    assert '"label":"id"' in html
+    assert '"label":"date"' not in html
+    assert '"label":"year"' not in html
