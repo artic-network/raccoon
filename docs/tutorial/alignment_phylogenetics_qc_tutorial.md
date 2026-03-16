@@ -20,11 +20,13 @@ category: raccoon
 order: 2
 ---
 
-{% include callout.html
+<!-- {% include callout.html
 type='default'
-content='**Overview:** A complete tutorial to combine newly generated consensus genome sequences with background and metadata, running sequence and metadata quality control, multiple sequence alignment, site masking or problematic sequence removal, maximum likelihood phylogenetic inference, and tree quality assessment. The software tools used today include the raccoon toolkit, MAFFT and IQTREE, run through a Nextflow pipeline within the EPI2ME interface.  Raccon, MAFFT and IQTREE can be used as command line tools, with full command-line documentation available for raccoon available at (github.com/artic-network/raccoon)[https://github.com/artic-network/raccoon].
-'
-%}
+content=' -->
+
+**Overview:** A complete tutorial to combine newly generated consensus genome sequences with background and metadata, running sequence and metadata quality control, multiple sequence alignment, site masking or problematic sequence removal, maximum likelihood phylogenetic inference, and tree quality assessment. The software tools used today include the raccoon toolkit, MAFFT and IQTREE, run through a Nextflow pipeline within the EPI2ME interface.  Raccon, MAFFT and IQTREE can be used as command line tools, with full command-line documentation available for raccoon available at (github.com/artic-network/raccoon)[https://github.com/artic-network/raccoon].
+<!-- '
+%} -->
 
 ## Background
 
@@ -344,48 +346,166 @@ Output:
 
 2. Click on `execution_report.... ⌄` to view the available reports. Select `seq-qc_report.html` to open the seq-qc report.
 
+<img width="500" alt="link" src="./images/epi2me_output2.png">
+
+3. Explore the seq-qc sections in turn. 
+
+The report summary section provides an overview of the data including total sequences, the date range associated with the sequence metadata and any filters applied. 
 
 
+> How many sequences were detected in the two files? 
+
+
+The inputs files section describes the FASTA and metadata files loaded into raccoon, with an overview of the number, length and ambiguous base content of the sequences in the input FASTA files. Click to expand each file to view QC information for each sequence. 
+
+The sequence length distribution plot shows lengths of the sequences in the input FASTA files. 
+
+> Are there any outliers in terms of sequence length?
+
+The metadata description plot summarises the geographical and temporal distribution of the dataset provided. 
+
+
+> When was the earliest sequence sampled? 
+
+> How many unique admin2 locations are included in the dataset? 
+
+The filtered sequences table highlights sequences flagged for filtering during the QC check.
+
+
+> Were there any sequences filtered out? Why were they filtered? 
+
+> What is the shortest sequence? Why do we not want to include a short sequence? 
+
+> What sequence has the highest N content? 
+
+
+The final dataset table describes the final, combined dataset, with harmonised headers.
+
+> How many sequences are included in the final dataset?
+
+
+Finally, any metadata issues such as missing fields or inability to match sequences are flagged in the metadata issues table.
+
+> Are there any sequences with missing metadata fields? How has raccoon handled these?
+
+
+<img width="500" alt="link" src="./images/epi2me_output3.png">
+
+3. Next, open the aln-qc report by clicking on the html dropdown as before. Explore the different sections shown in the aln-qc report. 
+
+Prior to any phylogenetic analysis, it's necessary to inspect the input alignment to assess its quality. Raccoon can help highlight parts of the alignment to investigate further. This is an important step before we start to build our tree, since alignment issues can significantly change the tree structure and our confidence in our conclusions.
+
+The summary provides an overview of the multiple sequence alignment, including the number of sequences, alignment length and N content.
+
+The alignment N-content section provides a more detailed picture of what parts of the alignment contain ambiguous bases.
+
+> Are there long stretches of Ns in our sequence? 
+
+> What effect might this have on our downstream analysis?
+
+If specific sites have been identified by raccoon as possibly problematic, they will be reported in the flagged sites section. The table shows the sites identified, the sequences they were found in, and the specific location of the sites within the sequence. The ‘note’ column provides further information about why each site was flagged by raccoon.
+
+> How many sites have been flagged? 
+
+> Why were they identified as problematic?
+
+These sites are not necessarily problematic, but it's important to investigate the alignment quality and these are good places to visually inspect (see next section on viewing the alignment in Sealion). 
+
+If a given sequence has more than 20 sites flagged, that sequence will be flagged for removal from the alignment.
+
+> Have any sequences been flagged for removal?
+
+
+The diversity plot allows us to see how conserved or variable certain sites are across the alignment, possibly flagging alignment issues.
+
+
+<img width="500" alt="link" src="./images/alignment.png">
+
+4. Next we will open the alignment file in Sealion to further investigate the sites that have been flagged. To access the alignment file for visualisation, in EPI2ME navigate to the `Files` tab. Then click into `raccoon_tutorial_data` > then `mafft` to see the directory raccoon-nf output the aligned FASTA file. 
+
+5. To open the directory to access the alignment file, click the three dots and select `Open in Finder` or `Open folder`, depending on your platform. This will open a file browser window where the alignment file is located on your computer.
+
+<img width="500" alt="link" src="./images/sealion.png">
+
+6. In a web browser window, navigate to [artic-network.github.io/sealion/](https://artic-network.github.io/sealion/). Drag and drop your alignment file in to explore your alignment.
+
+<img width="500" alt="link" src="./images/sealion2.png">
+
+7. Use the flagged sites as a guide to assess the quality of your alignment. 
+
+> Notice the Ns present at the start and end of the alignment in the latest sequence data. What might give rise to this?
+
+<img width="500" alt="link" src="./images/sealion3.png"> 
+
+8. Sealion can be used to view the amino acid translation of coding sequences in different reading frames (Click Show > Amino Acids). Explore the different reading frames to investigate what the genome codes for.
+
+> Can you decipher the code?
 
 ---
-
-## Step 3: Alignment Quality Control
-
-Assess the quality of your alignment:
-
-```bash
-raccoon aln-qc examples/mev/aln-qc/mev_sample.aln.fasta -d examples/mev/aln-qc/
-```
-
-**Questions:**
-- What metrics are used to evaluate alignment quality?
-- How can poor alignment affect downstream analysis?
-
+BREAK
 ---
 
-## Step 4: Masking and Tree Construction
+<img width="500" alt="link" src="./images/epi2me_output4.png"> 
 
-Mask problematic sites and infer a phylogenetic tree:
+9. Once the tree has been built, raccoon-nf conducts some further QC checks and produces a report, which we can view. Open the tree-qc_report.html in the EPI2ME browser.
 
-```bash
-raccoon mask examples/mev/aln-qc/mev_sample.aln.fasta --mask-file examples/mev/aln-qc/mask_sites.csv -d examples/mev/masked/
-iqtree -s examples/mev/masked/mev_sample.aln.masked.fasta -m HKY -czb -blmin 0.00000001 -asr  -o 'PP_003MAAS.2||2019'
-```
+The summary provides overview information about the tree itself. 
 
-**Questions:**
-- What is the purpose of masking sites in an alignment?
-- What does the HKY model represent in IQ-TREE?
+Navigate to the Interactive tree section. This section shows the maximum likelihood tree built during the tree-building step. Each node can be hovered over to view more information, including date and location. Tips can also be coloured according to various traits via the drop-down menu.
 
----
+This phylogeny can also be opened and viewed in PearTree.
 
-## Step 5: Tree Pruning and QC
+> Can you locate the treefile in the output Files? (Hint: look under `tree` and identify the `.treefile` file.) 
 
-Prune the tree and run phylogenetic QC:
+> Do the samples cluster by location and time?
 
-```bash
-jclusterfunk prune  -i "examples/mev/masked/mev_sample.aln.masked.fasta.treefile" -t 'PP_003MAAS.2||2019' -o 'examples/mev/masked/mev_sample.pruned.tree'
-raccoon tree-qc --phylogeny 'examples/mev/masked/mev_sample.pruned.tree' --asr-state examples/mev/masked/mev_sample.aln.masked.fasta.state --alignment examples/mev/masked/mev_sample.aln.masked.fasta -d examples/mev/tree-qc/
-```
+> Are all newly generated sequences clustering together?
+
+> What does this tell us about PHL036?
+
+> What does this tell us about PHL043?
+
+Root-to-tip regression
+
+This plots each tip according to its sampling date and its distance from the root of the tree. The regression line is also plotted, giving an idea of the temporal signal of the dataset.
+
+> Do most of the recent samples fall along the regression line? 
+> Are there any outliers? 
+> Why do you think these sequences are more/less diverged than their sampling date would suggest?
+
+
+Convergent mutations
+
+If raccoon finds evidence of convergent mutations in sequences, these will be reported here. 
+Reversions
+
+If raccoon finds reversions (mutations that revert previous mutations, returning the sequence to its ancestral state at this site), these will be reported here. 
+
+
+Signatures of human immune editing
+
+Host enzyme action can leave characteristic signatures in viral genomes. (ref)  If raccoon detects signals of human immune editing, such as APOBEC3 or ADAR editing, these will be flagged here. 
+
+
+Review: Consider the tree and the root-to-tip plot. 
+
+Next steps
+
+Now that we have assessed our tree, there are a number of next steps we could take, depending on the question we want to ask.
+
+We might want to better visualise and explore our ML tree, which can be done using visualisation software like PearTree (https://github.com/artic-network/peartree)
+
+Since we have determined that our data has reasonable temporal signal, we may also want to conduct further analysis using Bayesian phylogenetic methods, such as BEAST. 
+Link to further analysis- BEAST
+                        
+
+Additional Resources
+
+
+- [Raccoon Documentation](link-to-docs)
+- [MAFFT Manual](https://mafft.cbrc.jp/alignment/software/)
+- [IQ-TREE Documentation](http://www.iqtree.org/doc/)
+- [jclusterfunk GitHub](https://github.com/rob-p/jclusterfunk)
 
 **Questions:**
 - Why might you prune a phylogenetic tree?
