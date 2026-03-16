@@ -1,0 +1,170 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Layer_1" xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0 0 1120.24 1223.15">
+  <!-- Generator: Adobe Illustrator 29.7.0, SVG Export Plug-In . SVG Version: 2.1.1 Build 138)  -->
+  <defs>
+    <style>
+      .st0, .st1, .st2 {
+        font-size: 26px;
+      }
+
+      .st0, .st2 {
+        font-family: HelveticaNeue-Light, 'Helvetica Neue';
+        font-weight: 300;
+      }
+
+      .st3, .st4 {
+        fill: #5e6db1;
+      }
+
+      .st3, .st4, .st5, .st6, .st7, .st8, .st9, .st10 {
+        stroke-miterlimit: 10;
+      }
+
+      .st3, .st5, .st6, .st7, .st8 {
+        stroke: #fff;
+      }
+
+      .st3, .st6, .st7, .st8 {
+        stroke-width: 2px;
+      }
+
+      .st1 {
+        font-family: HelveticaNeue-Bold, 'Helvetica Neue';
+        font-weight: 700;
+      }
+
+      .st4, .st9, .st10 {
+        stroke: #000;
+      }
+
+      .st5 {
+        fill: #8b879e;
+        opacity: .5;
+        stroke-width: 5px;
+      }
+
+      .st6 {
+        fill: #444b6a;
+      }
+
+      .st7 {
+        fill: #82979a;
+      }
+
+      .st2 {
+        fill: #fff;
+      }
+
+      .st8 {
+        fill: #cec8eb;
+      }
+
+      .st9 {
+        stroke-dasharray: 12.48 12.48;
+      }
+
+      .st9, .st10 {
+        fill: none;
+        stroke-width: 3px;
+      }
+    </style>
+  </defs>
+  <rect class="st5" x="62.17" y="811.94" width="953.6" height="335.14"/>
+  <rect class="st5" x="62.17" y="425.16" width="953.6" height="387.11"/>
+  <rect class="st5" x="62.17" y="22.03" width="953.6" height="403.5"/>
+  <rect class="st6" x="152.17" y="35.43" width="252.94" height="108.82"/>
+  <rect class="st8" x="515.98" y="35.43" width="252.94" height="108.82"/>
+  <text class="st2" transform="translate(185.95 65.82)"><tspan x="0" y="0">Input sequences</tspan><tspan x="6.95" y="31.2">File or directory</tspan><tspan x="-3.63" y="62.4">with FASTA file(s)</tspan></text>
+  <text class="st0" transform="translate(557.71 65.82)"><tspan x="0" y="0">Input metadata</tspan><tspan x="-.99" y="31.2">File or directory</tspan><tspan x="-12.26" y="62.4">with csv/tsv file(s)</tspan></text>
+  <rect class="st6" x="338.93" y="440.26" width="252.94" height="108.82"/>
+  <text class="st2" transform="translate(411.23 486.25)"><tspan x="0" y="0">alignment</tspan><tspan x="7.85" y="31.2">(MAFFT)</tspan></text>
+  <g>
+    <polyline class="st10" points="405.11 117.41 425.88 117.41 425.88 191.81"/>
+    <polygon points="425.88 213 413.69 183.15 425.88 190.23 438.08 183.15 425.88 213"/>
+  </g>
+  <rect class="st7" x="301.98" y="159.83" width="45.59" height="36.76"/>
+  <rect class="st7" x="314.19" y="172.84" width="45.59" height="36.76"/>
+  <rect class="st7" x="326.77" y="186.65" width="45.59" height="36.76"/>
+  <text class="st2" transform="translate(334.4 213.79)"><tspan x="0" y="0">FA</tspan></text>
+  <rect class="st8" x="561.53" y="159.83" width="45.59" height="36.76" transform="translate(1168.66 356.43) rotate(-180)"/>
+  <rect class="st8" x="549.32" y="172.84" width="45.59" height="36.76" transform="translate(1144.24 382.45) rotate(-180)"/>
+  <rect class="st8" x="536.74" y="186.65" width="45.59" height="36.76" transform="translate(1119.07 410.06) rotate(-180)"/>
+  <text class="st0" transform="translate(540.52 214.58)"><tspan x="0" y="0">csv</tspan></text>
+  <rect class="st7" x="338.93" y="357.14" width="45.59" height="36.76"/>
+  <text class="st2" transform="translate(346.46 382.69)"><tspan x="0" y="0">FA</tspan></text>
+  <rect class="st8" x="666.47" y="245.02" width="329.56" height="36.76" transform="translate(1662.49 526.8) rotate(-180)"/>
+  <text class="st0" transform="translate(694.27 272.95)"><tspan x="0" y="0">seq-qc_filter_failures.csv</tspan></text>
+  <rect class="st8" x="666.47" y="286.69" width="329.56" height="36.76" transform="translate(1662.49 610.14) rotate(-180)"/>
+  <text class="st0" transform="translate(668.27 312.6)"><tspan x="0" y="0">seq-qc_metadata_issues.csv</tspan></text>
+  <rect class="st4" x="666.47" y="328.36" width="329.56" height="36.76" transform="translate(1662.49 693.49) rotate(-180)"/>
+  <text class="st2" transform="translate(724.12 356.3)"><tspan x="0" y="0">seq-qc_report.html</tspan></text>
+  <rect class="st6" x="338.93" y="247.53" width="252.94" height="108.82"/>
+  <text class="st2" transform="translate(419.63 293.51)"><tspan x="0" y="0">raccoon</tspan><tspan x="6.29" y="31.2">seq-qc</tspan></text>
+  <g>
+    <line class="st10" x1="591.87" y1="301.94" x2="627.01" y2="301.94"/>
+    <polygon points="648.19 301.94 618.34 314.13 625.42 301.94 618.34 289.75 648.19 301.94"/>
+  </g>
+  <g>
+    <line class="st10" x1="467.18" y1="370.15" x2="467.18" y2="405.28"/>
+    <polygon points="467.18 426.46 454.99 396.62 467.18 403.7 479.37 396.62 467.18 426.46"/>
+  </g>
+  <g>
+    <line class="st10" x1="467.18" y1="562.89" x2="467.18" y2="598.02"/>
+    <polygon points="467.18 619.2 454.99 589.35 467.18 596.43 479.37 589.35 467.18 619.2"/>
+  </g>
+  <rect class="st7" x="338.93" y="549.48" width="45.59" height="36.76"/>
+  <text class="st2" transform="translate(346.46 575.04)"><tspan x="0" y="0">FA</tspan></text>
+  <rect class="st8" x="663.86" y="648.19" width="329.56" height="36.76" transform="translate(1657.28 1333.15) rotate(-180)"/>
+  <text class="st0" transform="translate(743.68 674.1)"><tspan x="0" y="0">mask_sites.csv</tspan></text>
+  <rect class="st3" x="663.86" y="689.87" width="329.56" height="36.76" transform="translate(1657.28 1416.5) rotate(-180)"/>
+  <text class="st2" transform="translate(725.84 717.8)"><tspan x="0" y="0">aln-qc_report.html</tspan></text>
+  <rect class="st6" x="338.93" y="633" width="252.94" height="108.82"/>
+  <text class="st2" transform="translate(419.63 678.99)"><tspan x="0" y="0">raccoon</tspan><tspan x="10.62" y="31.2">aln-qc</tspan></text>
+  <g>
+    <line class="st10" x1="591.87" y1="687.41" x2="627.01" y2="687.41"/>
+    <polygon points="648.19 687.41 618.34 699.61 625.42 687.41 618.34 675.22 648.19 687.41"/>
+  </g>
+  <rect class="st6" x="338.93" y="825.74" width="252.94" height="108.82"/>
+  <text class="st2" transform="translate(355.31 857.82)"><tspan x="0" y="0">Maximum likelihood</tspan><tspan x="27.75" y="31.2">tree estimation</tspan><tspan x="59.99" y="62.4">(IQTREE)</tspan></text>
+  <g>
+    <line class="st10" x1="467.18" y1="755.62" x2="467.18" y2="790.75"/>
+    <polygon points="467.18 811.94 454.99 782.09 467.18 789.17 479.37 782.09 467.18 811.94"/>
+  </g>
+  <g>
+    <line class="st10" x1="467.18" y1="948.36" x2="467.18" y2="983.49"/>
+    <polygon points="467.18 1004.67 454.99 974.82 467.18 981.91 479.37 974.82 467.18 1004.67"/>
+  </g>
+  <rect class="st7" x="338.93" y="934.26" width="67.98" height="36.76"/>
+  <text class="st2" transform="translate(341.66 959.82)"><tspan x="0" y="0">TREE</tspan></text>
+  <rect class="st6" x="338.93" y="1018.47" width="252.94" height="108.82"/>
+  <text class="st2" transform="translate(419.63 1064.46)"><tspan x="0" y="0">raccoon</tspan><tspan x="5.32" y="31.2">tree-qc</tspan></text>
+  <g>
+    <line class="st10" x1="591.87" y1="1072.88" x2="627.01" y2="1072.88"/>
+    <polygon points="648.19 1072.88 618.34 1085.08 625.42 1072.88 618.34 1060.69 648.19 1072.88"/>
+  </g>
+  <rect class="st3" x="666.47" y="1076.08" width="329.56" height="36.76" transform="translate(1662.49 2188.92) rotate(-180)"/>
+  <text class="st2" transform="translate(728.45 1104.02)"><tspan x="0" y="0">aln-qc_report.html</tspan></text>
+  <rect class="st7" x="666.47" y="1032.92" width="329.56" height="36.76" transform="translate(1662.49 2102.61) rotate(-180)"/>
+  <text class="st2" transform="translate(712.69 1058.83)"><tspan x="0" y="0">midpoint_rooted.nwk</tspan></text>
+  <g>
+    <line class="st10" x1="515.83" y1="117.41" x2="509.83" y2="117.41"/>
+    <polyline class="st10" points="503.42 117.41 497.42 117.41 497.42 123.41"/>
+    <line class="st9" x1="497.42" y1="135.89" x2="497.42" y2="179.57"/>
+    <line class="st10" x1="497.42" y1="185.81" x2="497.42" y2="191.81"/>
+    <polygon points="497.42 213 485.23 183.15 497.42 190.23 509.62 183.15 497.42 213"/>
+  </g>
+  <rect class="st8" x="637.79" y="159.83" width="45.59" height="36.76" transform="translate(1321.17 356.43) rotate(-180)"/>
+  <rect class="st8" x="625.58" y="172.84" width="45.59" height="36.76" transform="translate(1296.75 382.45) rotate(-180)"/>
+  <rect class="st8" x="613" y="186.65" width="45.59" height="36.76" transform="translate(1271.58 410.06) rotate(-180)"/>
+  <text class="st0" transform="translate(619.67 214.58)"><tspan x="0" y="0">tsv</tspan></text>
+  <g>
+    <polyline class="st10" points="333.98 571.41 315.57 571.41 315.57 790.75"/>
+    <polygon points="315.57 811.94 303.38 782.09 315.57 789.17 327.77 782.09 315.57 811.94"/>
+  </g>
+  <text class="st1" transform="translate(69.61 55.41)"><tspan x="0" y="0">A</tspan></text>
+  <text class="st1" transform="translate(66.29 252.71)"><tspan x="0" y="0">B</tspan></text>
+  <text class="st1" transform="translate(67.21 450.01)"><tspan x="0" y="0">C</tspan></text>
+  <text class="st1" transform="translate(67.21 647.32)"><tspan x="0" y="0">D</tspan></text>
+  <text class="st1" transform="translate(68.42 844.62)"><tspan x="0" y="0">E</tspan></text>
+  <text class="st1" transform="translate(67.73 1041.92)"><tspan x="0" y="0">F</tspan></text>
+</svg>
