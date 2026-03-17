@@ -1,44 +1,75 @@
 # raccoon
 
 <p align="center">
-  <img src="docs/raccoon_logo.png" alt="raccoon logo" width="240" />
+  <img src="https://github.com/artic-network/raccoon/blob/main/docs/raccoon_logo.png" alt="raccoon logo" width="240" />
 </p>
 
 <p align="center"><strong>Rigorous Alignment Curation: Cleanup Of Outliers and Noise</strong></p>
 
-Raccoon is a lightweight toolkit for alignment and phylogenetic QC workflows. It identifies problematic sites (e.g., clustered SNPs, SNPs near Ns/gaps, and frame‑breaking indels) and produces mask files and summaries for downstream analyses.
+Raccoon is a lightweight toolkit for post-consensus genomic QC and phylogenetic quality control. It provides modular tools for sequence metadata harmonization, alignment curation, and phylogenetic tree assessment. Raccoon identifies problematic sequences and sites (e.g., clustered SNPs, SNPs near Ns/gaps, frame‑breaking indels, long branches, and convergent mutations) and produces detailed reports, mask files, and curated datasets for downstream analyses.
+
+**Rationale:** Quality assessment and curation of genomic sequence data is essential for robust phylogenetic inference. By systematically evaluating sequence quality, alignment accuracy, and tree topology, raccoon helps researchers identify and address data issues that could compromise epidemiological or evolutionary conclusions before proceeding with downstream analysis.
 
 ---
 
 ## Contents
 
 - [Use cases](#use-cases)
+- [Integrated workflows](#integrated-workflows)
 - [Installation](#installation)
 - [Quickstart](#quickstart)
 - [CLI usage](#cli-usage)
 - [Mask notes](#mask-notes)
 - [Example data](#example-data)
+- [Tutorial](#tutorial)
 
 ## Use cases
 
-- Flag clustered SNPs that may indicate contamination, recombination, or misalignment.
-- Detect SNPs adjacent to low-coverage regions (Ns) or gaps.
-- Identify frame-breaking indels in coding regions using a GenBank reference.
-- Generate mask files to exclude suspect sites prior to phylogenetic or evolutionary analyses.
+### Sequence QC
+- Harmonise sequence headers using metadata files (CSV/TSV) with flexible templating.
+- Match sequence identifiers to metadata and flag mismatches or missing fields.
+- Filter sequences by length and ambiguous base content.
+- Generate combined FASTA files with structured, epidemiologically-informative headers.
 
-## Installation
+### Alignment QC
+- Flag clustered SNPs that may indicate contamination, recombination, or misalignment.
+- Detect SNPs adjacent to low-coverage regions (Ns) or gaps, which may reflect data quality issues.
+- Identify frame-breaking indels in coding regions using a GenBank reference.
+- Generate detailed reports on alignment quality with visual summaries of site conservation and N-content.
+
+### Masking
+- Generate mask files to exclude suspect sites or sequences prior to phylogenetic analysis.
+- Apply masks to alignments using customizable masking characters.
+
+### Phylogenetic QC
+- Assess tree topology for anomalies including long branches and unexpected clustering.
+- Evaluate molecular clock assumptions via root-to-tip regression analysis.
+- Detect sources of bias including APOBEC3-mediated and ADAR-induced mutations.
+- Flag convergent mutations and reversion events (when ancestral state reconstruction is available).
+- Identify sequences for removal prior to downstream temporal or evolutionary analyses.
+
+## Integrated workflows
+
+### raccoon-nf: End-to-end Nextflow pipeline
+
+For complete phylogenetic quality-control workflows, **[raccoon-nf](https://github.com/Desperate-Dan/raccoon-nf)** integrates raccoon's modular tools with alignment and tree-building software (MAFFT, IQ-TREE) in a production-ready Nextflow pipeline. The raccoon-nf pipeline coordinates all QC steps in sequence:
+
+1. **Sequence QC** – harmonise headers and filter sequences
+2. **Alignment** – run MAFFT on combined sequences
+3. **Alignment QC** – assess alignment quality and flag problematic sites
+4. **Tree estimation** – build phylogenetic tree with IQTREE
+5. **Tree QC** – evaluate tree topology and identify outliers
+
+raccoon-nf can be run through the **EPI2ME** desktop interface for users without command-line expertise. See the [tutorial](#tutorial) for a complete walkthrough.
+
+## Stand alone installation
 
 From source:
 
 ```bash
-pip install .
+pip install artic-raccoon
 ```
 
-For development (editable install):
-
-```bash
-pip install -e .
-```
 
 ## Quickstart
 
@@ -183,3 +214,15 @@ The [examples](examples) folder includes a constructed alignment and GenBank ref
 
 - [examples/constructed_alignment.fasta](examples/constructed_alignment.fasta)
 - [examples/constructed_reference.gb](examples/constructed_reference.gb)
+
+## Tutorial
+
+A comprehensive tutorial covering sequence metadata harmonisation, multiple sequence alignment, alignment curation, phylogenetic inference, and tree assessment is available at [artic.network/tutorials/raccoon.nf](https://artic.network/tutorials/raccoon-nf). The tutorial includes:
+
+- Step-by-step guidance on preparing sequence and metadata files.
+- Instructions for running raccoon-nf through the EPI2ME interface.
+- Interpretation of QC reports and identification of common data issues.
+- Best practices for curating alignments and assessing phylogenetic results.
+- Interactive exercises using provided example datasets.
+
+The tutorial is suitable for both guided workshop delivery and self-paced learning.
