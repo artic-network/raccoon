@@ -1,0 +1,1308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Raccoon Pipeline - Interactive Workflow</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            background: #f5f5f5;
+            min-height: 100vh;
+            padding: 30px 20px;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: #444b6a;
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2em;
+            margin-bottom: 8px;
+            font-weight: 300;
+        }
+
+        .header p {
+            font-size: 1em;
+            opacity: 0.9;
+        }
+
+        .pipeline-container {
+            padding: 30px;
+            overflow-x: auto;
+            position: relative;
+        }
+
+        .pipeline {
+            display: flex;
+            flex-direction: column;
+            gap: 50px;
+            min-width: max-content;
+        }
+
+        .stage {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            animation: slideIn 0.6s ease-out;
+        }
+
+        .stage:nth-child(even) {
+            flex-direction: column;
+        }
+
+        .stage-process-wrapper {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .stage:has(.stage-optional-inputs) {
+            margin-top: 20px;
+        }
+
+        .stage-inputs,
+        .stage-inputs {
+            flex: 1;
+            min-width: 250px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            justify-content: center;
+            align-items: center;
+            order: 1;
+        }
+
+        .stage-process {
+            text-align: center;
+            order: 2;
+        }
+
+        .stage-outputs {
+            flex: 1;
+            min-width: 250px;
+            text-align: center;
+            order: 3;
+        }
+
+        .stage-optional-inputs {
+            flex: 1;
+            min-width: 150px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            justify-content: flex-start;
+            align-items: flex-end;
+            order: 1;
+            flex-shrink: 0;
+            position: absolute;
+            top: -50px;
+            left: 0;
+            width: auto;
+            z-index: 10;
+        }
+
+        .stage-optional-inputs-thumbnails {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .stage-optional-inputs-expanded {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .stage-optional-inputs-label {
+            font-size: 0.75em;
+            font-weight: 600;
+            color: #999;
+            text-align: center;
+            opacity: 0.7;
+            margin-bottom: 4px;
+            white-space: nowrap;
+        }
+
+        .stage-inputs-thumbnails {
+            display: flex;
+            flex-wrap: nowrap;
+            gap: 8px;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .stage-outputs-thumbnails {
+            display: flex;
+            flex-wrap: nowrap;
+            gap: 8px;
+            margin-top: 10px;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .stage-outputs-expanded {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-top: 10px;
+        }
+
+        .input-item {
+            background: #82979a;
+            color: white;
+            border-left: 3px solid #82979a;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 0.85em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-block;
+            width: auto;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .input-item.metadata {
+            background: #cec8eb;
+            color: #333;
+            border-left-color: #cec8eb;
+        }
+
+        .input-item:hover {
+            opacity: 0.85;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .output-item.thumbnail {
+            padding: 7px 12px;
+            font-size: 0.85em;
+            display: inline-block;
+            width: auto;
+            white-space: nowrap;
+            border-radius: 4px;
+            background: #82979a;
+            color: white;
+            border-left: 3px solid #82979a;
+            flex-shrink: 0;
+        }
+
+        .output-item.thumbnail.metadata {
+            background: #cec8eb;
+            color: #333;
+            border-left-color: #cec8eb;
+        }
+
+        .output-item.thumbnail:hover {
+            opacity: 0.85;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(68, 75, 106, 0.15);
+        }
+
+        .output-item.expanded {
+            display: block;
+            width: 100%;
+            margin: 10px 0;
+            padding: 15px;
+            background: #fff;
+            border: 1px solid #ddd;
+            border-left: 4px solid #444b6a;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .output-item.expanded:hover {
+            background: #f9f9f9;
+            border-color: #444b6a;
+            box-shadow: 0 2px 8px rgba(68, 75, 106, 0.1);
+        }
+
+        .output-item.expanded strong {
+            color: #444b6a;
+            font-size: 1.05em;
+            display: block;
+            margin-bottom: 8px;
+        }
+
+        .output-item.expanded p {
+            color: #666;
+            margin: 0;
+            line-height: 1.5;
+        }
+
+        .input-item.metadata,
+        .output-item.metadata {
+            border-left-color: #cec8eb;
+        }
+
+        .input-item.sequence,
+        .output-item.sequence {
+            border-left-color: #82979a;
+        }
+
+        .stage-process {
+            text-align: center;
+        }
+
+        .process-box {
+            background: #444b6a;
+            color: white;
+            padding: 25px 35px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(68, 75, 106, 0.3);
+            font-weight: 500;
+            font-size: 1.05em;
+        }
+
+        .process-box:hover {
+            transform: scale(1.05);
+            box-shadow: 0 6px 25px rgba(68, 75, 106, 0.5);
+        }
+
+        .process-box.external {
+            background: #444b6a;
+            box-shadow: 0 4px 15px rgba(68, 75, 106, 0.3);
+        }
+
+        .process-box.external:hover {
+            box-shadow: 0 6px 25px rgba(68, 75, 106, 0.5);
+        }
+
+        .stage-label {
+            display: inline-block;
+            font-size: 0.85em;
+            font-weight: 600;
+            color: #666;
+            margin-top: 8px;
+            opacity: 0.7;
+        }
+
+        .arrow {
+            text-align: center;
+            color: #444b6a;
+            font-size: 36px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+
+        .details-modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.4);
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .modal-content {
+            background-color: white;
+            margin: 10% auto;
+            padding: 30px;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .modal-header h2 {
+            margin: 0;
+            color: #5e6db1;
+        }
+
+        .close-btn {
+            font-size: 28px;
+            font-weight: bold;
+            color: #999;
+            cursor: pointer;
+            background: none;
+            border: none;
+            padding: 0;
+            transition: color 0.3s ease;
+        }
+
+        .close-btn:hover {
+            color: #000;
+        }
+
+        .modal-section {
+            margin-bottom: 20px;
+        }
+
+        .modal-section h3 {
+            color: #444b6a;
+            font-size: 1.1em;
+            margin-bottom: 10px;
+            margin-top: 15px;
+        }
+
+        .modal-section h3:first-child {
+            margin-top: 0;
+        }
+
+        .modal-section p,
+        .modal-section li {
+            color: #666;
+            line-height: 1.6;
+            margin-bottom: 8px;
+        }
+
+        .modal-section ul {
+            margin-left: 20px;
+        }
+
+        .modal-command {
+            background: #f5f5f5;
+            border-left: 3px solid #5e6db1;
+            padding: 12px 15px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            overflow-x: auto;
+            margin: 10px 0;
+        }
+
+        .learn-more {
+            color: #5e6db1;
+            text-decoration: none;
+            font-weight: 500;
+            margin-top: 15px;
+            display: inline-block;
+        }
+
+        .learn-more:hover {
+            text-decoration: underline;
+        }
+
+        .legend {
+            background: transparent;
+            padding: 20px 0;
+            margin-top: 30px;
+            border-radius: 0;
+            border-left: none;
+        }
+
+        .legend h3 {
+            margin-bottom: 15px;
+            color: #444b6a;
+        }
+
+        .legend-items {
+            display: flex;
+            gap: 30px;
+            align-items: center;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .legend-color {
+            width: 30px;
+            height: 30px;
+            border-radius: 4px;
+            flex-shrink: 0;
+        }
+
+        .legend-color.sequence {
+            background: #82979a;
+        }
+
+        .legend-color.metadata {
+            background: #cec8eb;
+        }
+
+        .legend-dashed-line {
+            width: 30px;
+            height: 2px;
+            border-top: 2px dashed #444b6a;
+            flex-shrink: 0;
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 1.8em;
+            }
+
+            .stage {
+                flex-direction: column !important;
+            }
+
+            .pipeline-container {
+                padding: 20px;
+            }
+
+            .modal-content {
+                width: 95%;
+                margin: 20% auto;
+            }
+
+            .legend-items {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .tooltip {
+            position: relative;
+            display: inline-block;
+            cursor: help;
+        }
+
+        .tooltip .tooltiptext {
+            visibility: hidden;
+            width: 250px;
+            background-color: #444;
+            color: #fff;
+            text-align: center;
+            border-radius: 6px;
+            padding: 8px;
+            position: absolute;
+            z-index: 1;
+            bottom: 125%;
+            left: 50%;
+            margin-left: -125px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            font-size: 0.85em;
+            white-space: normal;
+        }
+
+        .tooltip:hover .tooltiptext {
+            visibility: visible;
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Raccoon Pipeline</h1>
+            <p>Rigorous Alignment Curation: Cleanup Of Outliers and Noise</p>
+        </div>
+
+        <div class="pipeline-container">
+            <canvas id="pipeline-canvas" style="position: absolute; top: 0; left: 0; z-index: 4; pointer-events: none;"></canvas>
+            <div class="pipeline">
+                <!-- Stage 1: Inputs -->
+                <div class="stage">
+                    <div class="stage-inputs" id="inputs-section">
+                        <div class="stage-inputs-thumbnails">
+                            <div class="input-item sequence" onclick="toggleInput(event)">FASTA file(s)</div>
+                            <div class="input-item metadata" onclick="toggleInput(event)">Metadata file(s)</div>
+                        </div>
+                        <div class="stage-inputs-expanded" style="display:none;">
+                            <div class="output-item expanded sequence">
+                                <strong>FASTA file(s)</strong>
+                                <p>One or more sequence files in FASTA format</p>
+                            </div>
+                            <div class="output-item expanded metadata">
+                                <strong>Metadata file(s)</strong>
+                                <p>CSV or TSV files with sequence metadata (optional)</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Stage 2: seq-qc -->
+                <div class="stage">
+                    <div class="stage-process">
+                        <div class="process-box" id="seqqc-box" onclick="openModal('seqqc')">
+                            raccoon seq-qc
+                        </div>
+                        <span class="stage-label">Sequence QC</span>
+                    </div>
+                    <div class="stage-outputs" id="seqqc-outputs">
+                        <div class="stage-outputs-thumbnails">
+                            <div class="output-item thumbnail sequence" onclick="toggleOutput(event)">combined.fasta</div>
+                            <div class="output-item thumbnail metadata" onclick="toggleOutput(event)">seq-qc_report.html</div>
+                            <div class="output-item thumbnail metadata" onclick="toggleOutput(event)">Issues files</div>
+                        </div>
+                        <div class="stage-outputs-expanded" style="display:none;">
+                            <div class="output-item expanded sequence">
+                                <strong>combined.fasta</strong>
+                                <p>Combined sequences with harmonized headers</p>
+                            </div>
+                            <div class="output-item expanded metadata">
+                                <strong>seq-qc_report.html</strong>
+                                <p>Interactive report with filtering summary</p>
+                            </div>
+                            <div class="output-item expanded metadata">
+                                <strong>Issues files</strong>
+                                <p>metadata_issues.csv, filter_failures.csv</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Stage 3: Alignment -->
+                <div class="stage">
+                    <div class="stage-process">
+                        <div class="process-box external" id="mafft-box" onclick="openModal('alignment')">
+                            MAFFT
+                        </div>
+                        <span class="stage-label">Multiple Sequence Alignment</span>
+                    </div>
+                    <div class="stage-outputs" id="mafft-outputs">
+                        <div class="stage-outputs-thumbnails">
+                            <div class="output-item thumbnail sequence" onclick="toggleOutput(event)">alignment.fasta</div>
+                        </div>
+                        <div class="stage-outputs-expanded" style="display:none;">
+                            <div class="output-item expanded sequence">
+                                <strong>alignment.fasta</strong>
+                                <p>Multiple sequence alignment in FASTA format</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Stage 4: aln-qc -->
+                <div class="stage">
+                    <div class="stage-process">
+                        <div class="process-box" id="alnqc-box" onclick="openModal('alnqc')">
+                            raccoon aln-qc
+                        </div>
+                        <span class="stage-label">Alignment QC</span>
+                    </div>
+                    <div class="stage-outputs" id="alnqc-outputs">
+                        <div class="stage-outputs-thumbnails">
+                            <div class="output-item thumbnail metadata" onclick="toggleOutput(event)">mask_sites.csv</div>
+                            <div class="output-item thumbnail metadata" onclick="toggleOutput(event)">aln-qc_report.html</div>
+                            <div class="output-item thumbnail metadata" onclick="toggleOutput(event)">alignment_flags.tsv</div>
+                        </div>
+                        <div class="stage-outputs-expanded" style="display:none;">
+                            <div class="output-item expanded metadata">
+                                <strong>mask_sites.csv</strong>
+                                <p>Flagged sites (clustered SNPs, N-adjacent, gap-adjacent, frame breaks)</p>
+                            </div>
+                            <div class="output-item expanded metadata">
+                                <strong>aln-qc_report.html</strong>
+                                <p>Interactive alignment quality report with visualizations</p>
+                            </div>
+                            <div class="output-item expanded metadata">
+                                <strong>alignment_flags.tsv</strong>
+                                <p>Detailed per-sequence flag information</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Stage 5: Masking (Optional) -->
+                <div class="stage">
+                    <div class="stage-process">
+                        <div class="process-box" id="mask-box" onclick="openModal('mask')" style="opacity: 0.8; font-size: 0.95em;">
+                            raccoon mask (optional)
+                        </div>
+                        <span class="stage-label">Apply Mask</span>
+                    </div>
+                    <div class="stage-outputs" id="mask-outputs">
+                        <div class="stage-outputs-thumbnails">
+                            <div class="output-item thumbnail sequence" onclick="toggleOutput(event)">alignment.masked.fasta</div>
+                        </div>
+                        <div class="stage-outputs-expanded" style="display:none;">
+                            <div class="output-item expanded sequence">
+                                <strong>alignment.masked.fasta</strong>
+                                <p>Alignment with flagged sites masked</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Stage 6: Tree Estimation -->
+                <div class="stage">
+                    <div class="stage-process-wrapper">
+                        <div class="stage-optional-inputs" id="iqtree-optional">
+                            <div class="stage-optional-inputs-label">Optional Inputs</div>
+                            <div class="stage-optional-inputs-thumbnails">
+                                <div class="input-item metadata" onclick="toggleOptionalInput(event)">Outgroup IDs</div>
+                            </div>
+                            <div class="stage-optional-inputs-expanded" style="display:none;">
+                                <div class="output-item expanded metadata">
+                                    <strong>Outgroup IDs</strong>
+                                    <p>Comma-separated sequence IDs to use as outgroup for rooting</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="stage-process">
+                            <div class="process-box external" id="iqtree-box" onclick="openModal('iqtree')">
+                                IQ-TREE
+                            </div>
+                            <span class="stage-label">Maximum Likelihood Tree Estimation</span>
+                        </div>
+                    </div>
+                    <div class="stage-outputs" id="iqtree-outputs">
+                        <div class="stage-outputs-thumbnails">
+                            <div class="output-item thumbnail sequence" onclick="toggleOutput(event)">alignment.treefile</div>
+                            <div class="output-item thumbnail metadata" onclick="toggleOutput(event)">alignment.state</div>
+                        </div>
+                        <div class="stage-outputs-expanded" style="display:none;">
+                            <div class="output-item expanded sequence">
+                                <strong>alignment.treefile</strong>
+                                <p>Phylogenetic tree in Newick format</p>
+                            </div>
+                            <div class="output-item expanded metadata">
+                                <strong>alignment.state</strong>
+                                <p>Ancestral state reconstruction (optional)</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Stage 7: tree-qc -->
+                <div class="stage">
+                    <div class="stage-process">
+                        <div class="process-box" id="treeqc-box" onclick="openModal('treeqc')">
+                            raccoon tree-qc
+                        </div>
+                        <span class="stage-label">Phylogenetic QC</span>
+                    </div>
+                    <div class="stage-outputs" id="treeqc-outputs">
+                        <div class="stage-outputs-thumbnails">
+                            <div class="output-item thumbnail metadata" onclick="toggleOutput(event)">tree_qc_report.html</div>
+                            <div class="output-item thumbnail metadata" onclick="toggleOutput(event)">flagged_sequences.txt</div>
+                            <div class="output-item thumbnail metadata" onclick="toggleOutput(event)">Additional reports</div>
+                        </div>
+                        <div class="stage-outputs-expanded" style="display:none;">
+                            <div class="output-item expanded metadata">
+                                <strong>tree_qc_report.html</strong>
+                                <p>Interactive tree visualization with QC findings</p>
+                            </div>
+                            <div class="output-item expanded metadata">
+                                <strong>flagged_sequences.txt</strong>
+                                <p>Sequences flagged for removal with details</p>
+                            </div>
+                            <div class="output-item expanded metadata">
+                                <strong>Additional reports</strong>
+                                <p>Convergent mutations, APOBEC/ADAR signals, root-to-tip regression</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Legend -->
+            <div class="legend">
+                <h3>Legend</h3>
+                <div class="legend-items">
+                    <div class="legend-item">
+                        <div class="legend-color sequence"></div>
+                        <span>Sequence Data</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color metadata"></div>
+                        <span>Metadata/Reports</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-dashed-line"></div>
+                        <span>Optional Step</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    <div id="seqqcModal" class="details-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>raccoon seq-qc</h2>
+                <button class="close-btn" onclick="closeModal('seqqc')">&times;</button>
+            </div>
+            <div class="modal-section">
+                <h3>Purpose</h3>
+                <p>Combine and harmonize sequence metadata across multiple input files. Creates structured sequence headers using metadata, and filters sequences by length and N-content.</p>
+            </div>
+            <div class="modal-section">
+                <h3>Basic Usage</h3>
+                <div class="modal-command">raccoon seq-qc -f file1.fasta file2.fasta -o combined.fasta</div>
+            </div>
+            <div class="modal-section">
+                <h3>With Metadata</h3>
+                <div class="modal-command">raccoon seq-qc -f *.fasta -m metadata.csv \<br/>  --metadata-id-field sample_id \<br/>  --header-fields "{id}|{location}|{date}" \<br/>  -o combined.fasta</div>
+            </div>
+            <div class="modal-section">
+                <h3>Key Options</h3>
+                <ul>
+                    <li><strong>-f, --fasta:</strong> Input FASTA files (required)</li>
+                    <li><strong>-m, --metadata:</strong> Metadata CSV/TSV files (optional)</li>
+                    <li><strong>--header-fields:</strong> Custom header template (e.g., {id}|{location}|{date})</li>
+                    <li><strong>--min-length:</strong> Minimum sequence length filter</li>
+                    <li><strong>--max-n-content:</strong> Maximum N-content proportion (0-1)</li>
+                </ul>
+            </div>
+            <div class="modal-section">
+                <h3>Outputs</h3>
+                <ul>
+                    <li>Combined FASTA with harmonized headers</li>
+                    <li>HTML report with filtering summary</li>
+                    <li>Metadata issues and filter failures CSV files</li>
+                </ul>
+            </div>
+            <a href="../docs/cli.md#seq-qc-subcommand" class="learn-more">→ View full documentation</a>
+        </div>
+    </div>
+
+    <div id="alnqcModal" class="details-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>raccoon aln-qc</h2>
+                <button class="close-btn" onclick="closeModal('alnqc')">&times;</button>
+            </div>
+            <div class="modal-section">
+                <h3>Purpose</h3>
+                <p>Assess alignment quality and flag problematic sites. Detects clustered SNPs, SNPs adjacent to gaps or Ns, and frame-breaking indels. Generates a mask file for downstream masking.</p>
+            </div>
+            <div class="modal-section">
+                <h3>Basic Usage</h3>
+                <div class="modal-command">raccoon aln-qc alignment.fasta -d outdir</div>
+            </div>
+            <div class="modal-section">
+                <h3>With GenBank Reference</h3>
+                <div class="modal-command">raccoon aln-qc alignment.fasta -d outdir \<br/>  --genbank reference.gb \<br/>  --reference-id ref_seq_id</div>
+            </div>
+            <div class="modal-section">
+                <h3>Key Options</h3>
+                <ul>
+                    <li><strong>alignment:</strong> Input alignment FASTA (positional, required)</li>
+                    <li><strong>-t, --sequence-type:</strong> nt or aa (default: nt)</li>
+                    <li><strong>--cluster-window:</strong> Window size for clustered SNP detection (bp)</li>
+                    <li><strong>--cluster-count:</strong> Min SNPs in window to flag as clustered</li>
+                    <li><strong>--max-n-content:</strong> N-content threshold for flagging</li>
+                    <li><strong>--no-flag-*:</strong> Skip specific flag types (clustered, n-adjacent, gap-adjacent, frame-break)</li>
+                </ul>
+            </div>
+            <div class="modal-section">
+                <h3>Outputs</h3>
+                <ul>
+                    <li>mask_sites.csv - Flagged sites with flag types</li>
+                    <li>aln-qc_report.html - Interactive alignment report</li>
+                    <li>alignment_flags.tsv - Per-sequence flag details</li>
+                    <li>alignment_summary.txt - Summary statistics</li>
+                </ul>
+            </div>
+            <a href="../docs/cli.md#aln-qc-subcommand" class="learn-more">→ View full documentation</a>
+        </div>
+    </div>
+
+    <div id="maskModal" class="details-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>raccoon mask</h2>
+                <button class="close-btn" onclick="closeModal('mask')">&times;</button>
+            </div>
+            <div class="modal-section">
+                <h3>Purpose</h3>
+                <p>Apply an alignment QC mask file to exclude flagged sites from downstream phylogenetic inference. Replaces flagged sites with a mask character (default: ?).</p>
+            </div>
+            <div class="modal-section">
+                <h3>Usage</h3>
+                <div class="modal-command">raccoon mask alignment.fasta \<br/>  --mask-file mask_sites.csv \<br/>  -d outdir \<br/>  -o alignment.masked.fasta</div>
+            </div>
+            <div class="modal-section">
+                <h3>Key Options</h3>
+                <ul>
+                    <li><strong>alignment:</strong> Input alignment (positional, required)</li>
+                    <li><strong>--mask-file:</strong> Mask CSV from aln-qc (required)</li>
+                    <li><strong>--mask-character:</strong> Character for masking (default: ?)</li>
+                    <li><strong>-t, --sequence-type:</strong> nt or aa (default: nt)</li>
+                </ul>
+            </div>
+            <div class="modal-section">
+                <h3>Note</h3>
+                <p>This step is optional. You can proceed directly to tree building if you prefer to retain all sites.</p>
+            </div>
+            <a href="../docs/cli.md#mask-subcommand" class="learn-more">→ View full documentation</a>
+        </div>
+    </div>
+
+    <div id="treeqcModal" class="details-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>raccoon tree-qc</h2>
+                <button class="close-btn" onclick="closeModal('treeqc')">&times;</button>
+            </div>
+            <div class="modal-section">
+                <h3>Purpose</h3>
+                <p>Assess phylogenetic tree quality and identify problematic sequences. Detects long branches, convergent mutations, APOBEC3-mediated and ADAR-induced mutations, and evaluates temporal signal.</p>
+            </div>
+            <div class="modal-section">
+                <h3>Basic Usage</h3>
+                <div class="modal-command">raccoon tree-qc --tree alignment.treefile -d outdir</div>
+            </div>
+            <div class="modal-section">
+                <h3>With ASR and Bias Detection</h3>
+                <div class="modal-command">raccoon tree-qc --tree alignment.treefile \<br/>  --alignment alignment.fasta \<br/>  --asr-state alignment.state \<br/>  -d outdir \<br/>  --run-adar --run-apobec</div>
+            </div>
+            <div class="modal-section">
+                <h3>Key Options</h3>
+                <ul>
+                    <li><strong>-t, --tree:</strong> Tree file (required)</li>
+                    <li><strong>--outgroup-ids:</strong> Comma-separated outgroup sequence IDs (optional)</li>
+                    <li><strong>--alignment:</strong> Alignment FASTA (needed for some analyses)</li>
+                    <li><strong>--asr-state:</strong> ASR file from IQ-TREE</li>
+                    <li><strong>--long-branch-sd:</strong> SD threshold for long-branch flagging (default: 3.0)</li>
+                    <li><strong>--run-adar:</strong> Run ADAR mutation detection</li>
+                    <li><strong>--adar-window:</strong> Window size for ADAR clustering (default: 300 bp)</li>
+                    <li><strong>--run-apobec:</strong> Run APOBEC3 mutation detection</li>
+                    <li><strong>--midpoint-root:</strong> Midpoint-root tree for visualization</li>
+                </ul>
+            </div>
+            <div class="modal-section">
+                <h3>Outputs</h3>
+                <ul>
+                    <li>tree_qc_report.html - Interactive tree visualization</li>
+                    <li>flagged_sequences.txt - Outlier sequences for removal</li>
+                    <li>convergent_mutations.csv - Detected convergent mutations</li>
+                    <li>tree_summary.txt - Summary statistics</li>
+                </ul>
+            </div>
+            <a href="../docs/cli.md#tree-qc-subcommand" class="learn-more">→ View full documentation</a>
+        </div>
+    </div>
+
+    <div id="alignmentModal" class="details-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>MAFFT - Multiple Sequence Alignment</h2>
+                <button class="close-btn" onclick="closeModal('alignment')">&times;</button>
+            </div>
+            <div class="modal-section">
+                <h3>Purpose</h3>
+                <p>MAFFT is an external multiple sequence alignment software. It aligns the combined sequences into a format suitable for phylogenetic inference.</p>
+            </div>
+            <div class="modal-section">
+                <h3>Installation</h3>
+                <div class="modal-command">conda install -c bioconda mafft</div>
+            </div>
+            <div class="modal-section">
+                <h3>Basic Usage</h3>
+                <div class="modal-command">mafft --auto input.fasta > alignment.fasta</div>
+            </div>
+            <div class="modal-section">
+                <h3>Common Options</h3>
+                <ul>
+                    <li><strong>--auto:</strong> Automatic method selection based on input size</li>
+                    <li><strong>--thread:</strong> Number of threads for parallelization</li>
+                    <li><strong>--maxiterate:</strong> Number of refinement iterations</li>
+                </ul>
+            </div>
+            <div class="modal-section">
+                <h3>Note</h3>
+                <p><strong>External tool:</strong> Not part of raccoon, but essential for the pipeline. Install separately using Conda or your package manager.</p>
+            </div>
+            <a href="https://mafft.cbrc.jp/" class="learn-more" target="_blank">→ MAFFT Documentation</a>
+        </div>
+    </div>
+
+    <div id="iqtreeModal" class="details-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>IQ-TREE - Phylogenetic Inference</h2>
+                <button class="close-btn" onclick="closeModal('iqtree')">&times;</button>
+            </div>
+            <div class="modal-section">
+                <h3>Purpose</h3>
+                <p>IQ-TREE is an external software for maximum likelihood phylogenetic tree estimation. It can also generate ancestral state reconstructions for use with tree-qc.</p>
+            </div>
+            <div class="modal-section">
+                <h3>Installation</h3>
+                <div class="modal-command">conda install -c bioconda iqtree</div>
+            </div>
+            <div class="modal-section">
+                <h3>Basic Usage</h3>
+                <div class="modal-command">iqtree -s alignment.fasta -m GTR+G -bb 1000</div>
+            </div>
+            <div class="modal-section">
+                <h3>Common Options</h3>
+                <ul>
+                    <li><strong>-s:</strong> Input alignment file</li>
+                    <li><strong>-m:</strong> Evolution model (e.g., GTR+G, HKY+F)</li>
+                    <li><strong>-bb:</strong> Number of bootstrap replicates</li>
+                    <li><strong>-asr:</strong> Compute ancestral state reconstruction</li>
+                    <li><strong>-T:</strong> Number of threads</li>
+                </ul>
+            </div>
+            <div class="modal-section">
+                <h3>For Raccoon Integration</h3>
+                <p>To generate ASR files for tree-qc analysis, use flag <code>-asr</code> in IQ-TREE. This will create a <code>.state</code> file needed for advanced tree-qc analyses.</p>
+            </div>
+            <a href="http://www.iqtree.org/" class="learn-more" target="_blank">→ IQ-TREE Documentation</a>
+        </div>
+    </div>
+
+    <script>
+        function toggleOutput(event) {
+            const clicked = event.currentTarget;
+            const stageOutputs = clicked.closest('.stage-outputs');
+            const expandedContainer = stageOutputs.querySelector('.stage-outputs-expanded');
+            const thumbnailsContainer = stageOutputs.querySelector('.stage-outputs-thumbnails');
+            
+            if (expandedContainer.style.display === 'none') {
+                expandedContainer.style.display = 'flex';
+                thumbnailsContainer.style.display = 'none';
+                // Add click handler to collapse when clicking expanded items
+                expandedContainer.querySelectorAll('.output-item.expanded').forEach(item => {
+                    item.onclick = () => toggleOutput({ currentTarget: clicked });
+                });
+            } else {
+                expandedContainer.style.display = 'none';
+                thumbnailsContainer.style.display = 'flex';
+            }
+            
+            // Redraw arrows after accordion toggles
+            setTimeout(redrawConnections, 50);
+        }
+
+        function toggleInput(event) {
+            const clicked = event.currentTarget;
+            const stageInputs = clicked.closest('.stage-inputs');
+            const expandedContainer = stageInputs.querySelector('.stage-inputs-expanded');
+            const thumbnailsContainer = stageInputs.querySelector('.stage-inputs-thumbnails');
+            
+            if (expandedContainer.style.display === 'none') {
+                expandedContainer.style.display = 'flex';
+                thumbnailsContainer.style.display = 'none';
+                // Add click handler to collapse when clicking expanded items
+                expandedContainer.querySelectorAll('.output-item.expanded').forEach(item => {
+                    item.onclick = () => toggleInput({ currentTarget: clicked });
+                });
+            } else {
+                expandedContainer.style.display = 'none';
+                thumbnailsContainer.style.display = 'flex';
+            }
+            
+            // Redraw arrows after accordion toggles
+            setTimeout(redrawConnections, 50);
+        }
+
+        function toggleOptionalInput(event) {
+            const clicked = event.currentTarget;
+            const stageOptionalInputs = clicked.closest('.stage-optional-inputs');
+            const expandedContainer = stageOptionalInputs.querySelector('.stage-optional-inputs-expanded');
+            const thumbnailsContainer = stageOptionalInputs.querySelector('.stage-optional-inputs-thumbnails');
+            
+            if (expandedContainer.style.display === 'none') {
+                expandedContainer.style.display = 'flex';
+                thumbnailsContainer.style.display = 'none';
+                // Add click handler to collapse when clicking expanded items
+                expandedContainer.querySelectorAll('.output-item.expanded').forEach(item => {
+                    item.onclick = () => toggleOptionalInput({ currentTarget: clicked });
+                });
+            } else {
+                expandedContainer.style.display = 'none';
+                thumbnailsContainer.style.display = 'flex';
+            }
+            
+            // Redraw arrows after accordion toggles
+            setTimeout(redrawConnections, 50);
+        }
+
+        function openModal(stage) {
+            const modalMap = {
+                'seqqc': 'seqqcModal',
+                'alnqc': 'alnqcModal',
+                'mask': 'maskModal',
+                'treeqc': 'treeqcModal',
+                'alignment': 'alignmentModal',
+                'iqtree': 'iqtreeModal'
+            };
+            const modal = document.getElementById(modalMap[stage]);
+            if (modal) {
+                modal.style.display = 'block';
+                document.body.style.overflow = 'hidden';
+            }
+        }
+
+        function closeModal(stage) {
+            const modalMap = {
+                'seqqc': 'seqqcModal',
+                'alnqc': 'alnqcModal',
+                'mask': 'maskModal',
+                'treeqc': 'treeqcModal',
+                'alignment': 'alignmentModal',
+                'iqtree': 'iqtreeModal'
+            };
+            const modal = document.getElementById(modalMap[stage]);
+            if (modal) {
+                modal.style.display = 'none';
+                document.body.style.overflow = 'auto';
+            }
+        }
+
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            if (event.target.classList.contains('details-modal')) {
+                event.target.style.display = 'none';
+                document.body.style.overflow = 'auto';
+            }
+        }
+
+        // Close modal with Escape key
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                document.querySelectorAll('.details-modal').forEach(modal => {
+                    modal.style.display = 'none';
+                });
+                document.body.style.overflow = 'auto';
+            }
+        });
+
+        // Canvas-based arrow system for pipeline connections
+        const pipelineConnections = [
+            { from: 'inputs-section', to: 'seqqc-box', dashed: false },
+            { from: 'seqqc-outputs', to: 'mafft-box', dashed: false },
+            { from: 'mafft-outputs', to: 'alnqc-box', dashed: false },
+            { from: 'alnqc-outputs', to: 'mask-box', dashed: true },
+            { from: 'mask-outputs', to: 'iqtree-box', dashed: false },
+            { from: 'iqtree-outputs', to: 'treeqc-box', dashed: false },
+            { from: 'mafft-outputs', to: 'iqtree-box', dashed: true },  // Special long dashed arrow
+            { from: 'iqtree-optional', to: 'iqtree-box', dashed: true, toEdge: 'left' }  // Optional inputs to left edge of box
+        ];
+
+        // Define stage order for detecting sequential connections
+        const stageOrder = ['inputs-section', 'seqqc-box', 'seqqc-outputs', 'mafft-box', 'mafft-outputs', 'alnqc-box', 'alnqc-outputs', 'mask-box', 'mask-outputs', 'iqtree-box', 'iqtree-outputs', 'treeqc-box'];
+
+        function drawArrowhead(ctx, fromX, fromY, toX, toY) {
+            const headlen = 15;
+            const angle = Math.atan2(toY - fromY, toX - fromX);
+            
+            // Draw arrowhead
+            ctx.fillStyle = '#444b6a';
+            ctx.beginPath();
+            ctx.moveTo(toX, toY);
+            ctx.lineTo(toX - headlen * Math.cos(angle - Math.PI / 6), toY - headlen * Math.sin(angle - Math.PI / 6));
+            ctx.lineTo(toX - headlen * Math.cos(angle + Math.PI / 6), toY - headlen * Math.sin(angle + Math.PI / 6));
+            ctx.closePath();
+            ctx.fill();
+        }
+
+        function drawVerticalLine(ctx, startX, startY, endX, endY, isDashed = false) {
+            ctx.strokeStyle = '#444b6a';
+            ctx.lineWidth = 2.5;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            
+            if (isDashed) {
+                ctx.setLineDash([4, 4]);
+            }
+
+            ctx.beginPath();
+            ctx.moveTo(startX, startY);
+            ctx.lineTo(endX, endY);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            
+            // Draw arrowhead
+            drawArrowhead(ctx, startX, startY - 10, endX, endY);
+        }
+
+        function drawAngularPath(ctx, startX, startY, endX, endY, isDashed = false, toEdge = 'right', fromOptional = false) {
+            const container = document.querySelector('.pipeline-container');
+            const containerRect = container.getBoundingClientRect();
+            
+            ctx.strokeStyle = '#444b6a';
+            ctx.lineWidth = 2.5;
+            if (isDashed) {
+                ctx.setLineDash([4, 4]);
+            }
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+
+            ctx.beginPath();
+            
+            if (fromOptional) {
+                // From optional input: go straight down, then turn 90 degrees and go horizontal
+                ctx.moveTo(startX, startY);
+                ctx.lineTo(startX, endY);           // Go straight down to destination y
+                ctx.lineTo(endX, endY);             // Go horizontal to left edge center
+                ctx.stroke();
+                ctx.setLineDash([]);
+                // Arrow coming from above, pointing horizontally left-to-right
+                drawArrowhead(ctx, startX - 10, endY, endX, endY);
+            } else {
+                // From outputs: go right then down then left (existing behavior)
+                let rightOffset;
+                const allThumbnails = container.querySelectorAll('.stage-outputs-thumbnails');
+                let maxThumbnailRight = 0;
+                
+                allThumbnails.forEach(thumb => {
+                    const thumbRect = thumb.getBoundingClientRect();
+                    const rightEdge = thumbRect.right - containerRect.left;
+                    maxThumbnailRight = Math.max(maxThumbnailRight, rightEdge);
+                });
+                
+                const thumbnailPadding = 30;
+                rightOffset = Math.max(150, maxThumbnailRight + thumbnailPadding);
+                rightOffset = Math.max(rightOffset, container.offsetWidth * 0.15);
+                
+                ctx.moveTo(startX, startY);
+                ctx.lineTo(rightOffset, startY);           // Go right to offset point
+                ctx.lineTo(rightOffset, endY);             // Go vertically to destination
+                ctx.lineTo(endX, endY);                    // Come back to endpoint (right edge center)
+                ctx.stroke();
+                ctx.setLineDash([]);
+                // Arrow coming from right, pointing left-to-right toward endpoint
+                drawArrowhead(ctx, rightOffset - 10, endY, endX, endY);
+            }
+        }
+
+        function isSequentialConnection(fromId, toId) {
+            const fromIndex = stageOrder.indexOf(fromId);
+            const toIndex = stageOrder.indexOf(toId);
+            
+            // Check if toId is exactly the next element after fromId
+            return fromIndex !== -1 && toIndex !== -1 && toIndex === fromIndex + 1;
+        }
+
+        function redrawConnections() {
+            const canvas = document.getElementById('pipeline-canvas');
+            if (!canvas) return;
+
+            const container = document.querySelector('.pipeline-container');
+            canvas.width = container.offsetWidth;
+            canvas.height = container.offsetHeight;
+
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw each connection
+            pipelineConnections.forEach(connection => {
+                const fromElement = document.getElementById(connection.from);
+                const toElement = document.getElementById(connection.to);
+
+                if (!fromElement || !toElement) return;
+
+                const fromRect = fromElement.getBoundingClientRect();
+                const toRect = toElement.getBoundingClientRect();
+                const containerRect = container.getBoundingClientRect();
+
+                // Start from underneath the output section (from), with offset
+                // For optional inputs, start from bottom without extra offset
+                let outputOffset = 15; 
+                if (connection.from === 'iqtree-optional') {
+                    outputOffset = 0; // No extra offset for optional inputs
+                }
+                const startX = (fromRect.left - containerRect.left) + (fromRect.width / 2);
+                const startY = (fromRect.bottom - containerRect.top) + outputOffset;
+                
+                // Check if this is a sequential connection
+                // Optional inputs are never sequential (they're always angular/dashed)
+                let isSequential = connection.from !== 'iqtree-optional' && isSequentialConnection(connection.from, connection.to);
+                
+                // For sequential arrows: endpoint is top center of destination box
+                // For angular arrows: endpoint is right edge center or left edge center of destination box
+                let endX, endY;
+                if (isSequential) {
+                    endX = (toRect.left - containerRect.left) + (toRect.width / 2);
+                    endY = (toRect.top - containerRect.top);
+                } else if (connection.toEdge === 'left') {
+                    // Arrow pointing to left edge center
+                    endX = (toRect.left - containerRect.left);
+                    endY = (toRect.top - containerRect.top) + (toRect.height / 2);
+                } else {
+                    // Arrow pointing to right edge center
+                    endX = (toRect.right - containerRect.left);
+                    endY = (toRect.top - containerRect.top) + (toRect.height / 2);
+                }
+
+                if (isSequential) {
+                    drawVerticalLine(ctx, startX, startY, endX, endY, connection.dashed);
+                } else {
+                    const fromOptional = connection.from === 'iqtree-optional';
+                    drawAngularPath(ctx, startX, startY, endX, endY, connection.dashed, connection.toEdge, fromOptional);
+                }
+            });
+        }
+
+        // Redraw on load, resize, and scroll
+        window.addEventListener('load', redrawConnections);
+        window.addEventListener('resize', redrawConnections);
+        window.addEventListener('scroll', redrawConnections);
+        
+        // Initial draw with slight delay
+        setTimeout(redrawConnections, 100);
+
+        // Handle optional inputs positioning to avoid overlaps
+        function adjustOptionalInputsPosition() {
+            const optionalInputs = document.getElementById('iqtree-optional');
+            const processBox = document.getElementById('iqtree-box');
+            const wrapper = document.querySelector('.stage-process-wrapper');
+            const container = document.querySelector('.pipeline-container');
+            
+            if (!optionalInputs || !processBox || !wrapper || !container) return;
+
+            const containerRect = container.getBoundingClientRect();
+            const wrapperRect = wrapper.getBoundingClientRect();
+            const processBoxRect = processBox.getBoundingClientRect();
+            const optionalInputsRect = optionalInputs.getBoundingClientRect();
+
+            // Calculate the left edge of the process box relative to the wrapper
+            const processBoxLeftInContainer = processBoxRect.left - containerRect.left;
+            const processBoxWidth = processBoxRect.width;
+            const optionalInputsWidth = optionalInputsRect.width;
+
+            // Position optional input to the left of the process box
+            // Add a small arrow clearance (about 30px for the incoming arrow)
+            const arrowClearance = 30;
+            const gap = 10; // gap between optional input and process box edge
+            
+            // Position so that the optional input's right edge is roughly at the left edge of process box
+            // minus the arrow clearance and gap
+            const calculatedLeft = -(optionalInputsWidth + gap + arrowClearance);
+            
+            optionalInputs.style.left = calculatedLeft + 'px';
+        }
+
+        window.addEventListener('load', adjustOptionalInputsPosition);
+        window.addEventListener('resize', adjustOptionalInputsPosition);
+        setTimeout(adjustOptionalInputsPosition, 100);
+    </script>
+</body>
+</html>

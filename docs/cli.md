@@ -152,6 +152,8 @@ Key options:
 - `--tip-field-delimiter`: delimiter for tip field parsing
 - `--tip-date-field`: field name treated as date in tip parsing
 - `--midpoint-root`: midpoint-root for report visualisation (applied only when `--asr-state` is not provided)
+- `--adar-window`: max distance (bp) for ADAR cluster window (default: `300`)
+- `--adar-min-count`: min ADAR sites in window to flag branch (default: `3`)
 - `--height`: optional figure height
 
 ## Global options
