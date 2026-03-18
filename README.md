@@ -59,8 +59,9 @@ Raccoon is a lightweight toolkit for post-consensus genomic QC and phylogenetic 
 
 Running best-practice phylogenetics can be challenging, however with raccoon a simple alignment and phylogenetic workflow can be customised with data quality in mind.
 
-{% include image.html file="raccoon_pipeline.svg" prefix=root_url %} <br />
-
+<p align="center">
+  <img src="./docs/raccoon_pipeline.svg" alt="raccoon logo" width="500" />
+</p>
 
 A) *Input files*
 - input sequences (one or more fasta files or directory containing fasta file)
