@@ -294,6 +294,7 @@
 
         .output-item.expanded.active {
             display: block;
+            text-align: left;
         }
 
         .output-item.expanded:hover {
@@ -634,16 +635,21 @@
                         <div class="stage-outputs-expanded">
                             <div class="output-item expanded sequence">
                                 <strong>combined.fasta</strong>
-                                <p>Combined sequences with harmonized headers.</p>
-                                <p>By default raccoon will attempt to match sequence IDs with metadata and produce headers in the format "sample|location|YYYY-MM-DD".</p>
+                                <p>Combined sequence file with N content and length filter, with harmonized headers populated from metadata.</p>
+                                <p>By default raccoon will attempt to match sequence IDs with metadata and produce headers in the format ">sample|location|YYYY-MM-DD".</p>
                             </div>
                             <div class="output-item expanded metadata">
                                 <strong>seq-qc_report.html</strong>
                                 <p>Interactive report with filtering summary</p>
+                                <p>Contains a summary of input files, 
+                                    sequence length distribution, metadata description, 
+                                    filtered sequences, final IDs, and report metadata.</p>
+                                    
                             </div>
                             <div class="output-item expanded metadata">
                                 <strong>Issues files</strong>
-                                <p>metadata_issues.csv, filter_failures.csv</p>
+                                <p><strong>metadata_issues.csv:</strong> Missing metadata CSV flagging sequences with missing location or date metadata</p>
+                                <p><strong>filter_failures.csv:</strong> CSV file of sequences that did not pass filters, and so are not included in the combined FASTA</p>
                             </div>
                         </div>
                     </div>
@@ -824,7 +830,7 @@
             </div>
             <div class="modal-section">
                 <h3>Purpose</h3>
-                <p>Combine and harmonize sequence metadata across multiple input files. Creates structured sequence headers using metadata, and filters sequences by length and N-content.</p>
+                <p>Combine and harmonize sequence headers across one or more input files. Creates structured, consistent sequence headers using metadata, and filters sequences by length and N-content.</p>
             </div>
             <div class="modal-section">
                 <h3>Basic Usage</h3>
@@ -832,24 +838,36 @@
             </div>
             <div class="modal-section">
                 <h3>With Metadata</h3>
-                <div class="modal-command">raccoon seq-qc -f *.fasta -m metadata.csv \<br/>  --metadata-id-field sample_id \<br/>  --header-fields "{id}|{location}|{date}" \<br/>  -o combined.fasta</div>
+                <div class="modal-command">raccoon seq-qc -f *.fasta -m metadata.csv \<br/>  --metadata-id-field sample_id \<br/>  --header-fields "{sample}|{admin1}|{admin2}|{date}" \<br/>  -o combined.fasta</div>
             </div>
             <div class="modal-section">
                 <h3>Key Options</h3>
                 <ul>
-                    <li><strong>-f, --fasta:</strong> Input FASTA files (required)</li>
+                    <li><strong>-f, --fasta:</strong> Input FASTA file(s) (required)</li>
                     <li><strong>-m, --metadata:</strong> Metadata CSV/TSV files (optional)</li>
-                    <li><strong>--header-fields:</strong> Custom header template (e.g., {id}|{location}|{date})</li>
+                    <li><strong>--header-fields:</strong> Sequence header template <br>(default: {sample}|{location}|{date})</li>
                     <li><strong>--min-length:</strong> Minimum sequence length filter</li>
                     <li><strong>--max-n-content:</strong> Maximum N-content proportion (0-1)</li>
+                    <li><strong>--require-date:</strong> Require a valid date in the metadata or sequence header</li>
+                    <li><strong>-o, --outfile:</strong> Name of combined output FASTA file <br>(default: `combined.fasta`)</li>
+                </ul>
+                <h3>Customisation</h3>
+                <ul>
+                    <li><strong>--metadata-id-field:</strong> Field in metadata to use as unique identifier <br>(default: `sample`)</li>
+                    <li><strong>--metadata-location-field:</strong> Field in metadata to use for location information <br>(default: `location`)</li>
+                    <li><strong>--metadata-date-field:</strong> Field in metadata to use for date information <br>(default: `date`)</li>
+                    <li><strong>--seq-id-field-index:</strong> Which field in the FASTA header to match against metadata <br>(default: whole header)</li>
+                    <li><strong>--seq-id-delimiter:</strong> Delimiter used to split FASTA header fields <br>(default: `|`)</li>
+                    <li><strong>--require-date:</strong> Require a valid date in the metadata or sequence header</li>
                 </ul>
             </div>
             <div class="modal-section">
                 <h3>Outputs</h3>
                 <ul>
-                    <li>Combined FASTA with harmonized headers</li>
-                    <li>HTML report with filtering summary</li>
-                    <li>Metadata issues and filter failures CSV files</li>
+                    <li>Combined FASTA file with harmonized headers</li>
+                    <li>HTML report with seq-qc summary</li>
+                    <li>Missing metadata CSV flagging sequences with missing location or date metadata</li>
+                    <li>CSV file of sequences that did not pass filters, and so are not included in the combined FASTA</li>
                 </ul>
             </div>
             <a href="../docs/cli.md#seq-qc-subcommand" class="learn-more">→ View full documentation</a>
