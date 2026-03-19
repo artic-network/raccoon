@@ -415,9 +415,7 @@ def extract_date_from_text(text: str) -> Optional[str]:
         r'\d{8}',                   # YYYYMMDD
         r'\d{4}-\d{2}',             # YYYY-MM
         r'\d{4}/\d{2}',             # YYYY/MM
-        r'\d{4}\.\d{2}',            # YYYY.MM
-        r'\d{6}',                   # YYYYMM (but must be distinct from YYYYMMDD)
-        r'\d{4}',                   # YYYY
+        r'(?:17|18|19|20)\d{2}',          # YYYY - must start with 17, 18, 19, or 20 (1700-2099)
     ]
     
     for pattern in patterns:
@@ -595,7 +593,7 @@ def main(args):
                             header_date = extract_date_from_text(record.id)
                             if not header_date:
                                 reasons.append("missing date in metadata and no parseable date in header")
-                    
+
                     status = "filtered" if reasons else "kept"
                     if metadata_map is not None:
                         if metadata_row:
