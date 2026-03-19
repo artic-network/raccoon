@@ -369,6 +369,92 @@ class TestRequireDateFiltering:
                 content = f.read()
                 assert count_fasta_records(content) == 0
 
+    def test_require_date_with_empty_metadata_date_field(self):
+        """Test that sequences with empty metadata date are filtered with --require-date."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # Create FASTA with sequence
+            fasta_path = os.path.join(tmpdir, "test.fasta")
+            with open(fasta_path, "w") as f:
+                f.write(">seq1\nACGT\n>seq2\nGGGG\n")
+            
+            # Create metadata - seq1 has empty date, seq2 has a date
+            metadata_path = os.path.join(tmpdir, "meta.csv")
+            with open(metadata_path, "w", newline="") as f:
+                writer = csv.DictWriter(f, fieldnames=["sample", "location", "date"])
+                writer.writeheader()
+                writer.writerow({"sample": "seq1", "location": "USA", "date": ""})  # Empty date
+                writer.writerow({"sample": "seq2", "location": "UK", "date": "2024-01-01"})
+            
+            class Args:
+                fasta = [fasta_path]
+                metadata = [metadata_path]
+                metadata_delimiter = ","
+                metadata_id_field = "sample"
+                metadata_location_field = "location"
+                metadata_date_field = "date"
+                seq_id_delimiter = None
+                seq_id_field_index = 0
+                min_length = None
+                max_n_content = None
+                require_date = True
+                header_fields = None
+                header_separator = "|"
+                outfile = os.path.join(tmpdir, "output.fasta")
+                input_cmd_line = "test"
+            
+            result = combine.main(Args())
+            assert result == 0
+            
+            # Only seq2 should be kept
+            with open(Args.outfile) as f:
+                content = f.read()
+                assert count_fasta_records(content) == 1
+                assert ">seq2" in content
+
+    def test_require_date_rejects_false_date_matches_in_headers(self):
+        """Test that accession-like IDs with embedded numbers don't falsely match as dates.
+        
+        Example: PP_00321JP.1 contains "0032" which should not match as year 0032.
+        Only dates starting with 19xx or 20xx should match as valid years.
+        """
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # Create FASTA with accession-like ID
+            fasta_path = os.path.join(tmpdir, "test.fasta")
+            with open(fasta_path, "w") as f:
+                f.write(">PP_00321JP.1\nACGTACGTACGTACGTACGT\n")
+            
+            # Create metadata with empty date for this accession
+            metadata_path = os.path.join(tmpdir, "meta.csv")
+            with open(metadata_path, "w", newline="") as f:
+                writer = csv.DictWriter(f, fieldnames=["accessionVersion", "geoLocCountry", "sampleCollectionDate"])
+                writer.writeheader()
+                writer.writerow({"accessionVersion": "PP_00321JP.1", "geoLocCountry": "USA", "sampleCollectionDate": ""})
+            
+            class Args:
+                fasta = [fasta_path]
+                metadata = [metadata_path]
+                metadata_delimiter = ","
+                metadata_id_field = "accessionVersion"
+                metadata_location_field = "geoLocCountry"
+                metadata_date_field = "sampleCollectionDate"
+                seq_id_delimiter = None
+                seq_id_field_index = 0
+                min_length = None
+                max_n_content = None
+                require_date = True
+                header_fields = None
+                header_separator = "|"
+                outfile = os.path.join(tmpdir, "output.fasta")
+                input_cmd_line = "test"
+            
+            result = combine.main(Args())
+            assert result == 0
+            
+            # Sequence should be filtered (since "0032" should not match as a valid year)
+            with open(Args.outfile) as f:
+                content = f.read()
+                assert count_fasta_records(content) == 0, "Accession-like ID should not contain false date matches"
+
 
 def count_fasta_records(fasta_content: str) -> int:
     """Count the number of FASTA records in a string."""
