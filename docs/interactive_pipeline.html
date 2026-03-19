@@ -134,6 +134,10 @@
             display: flex;
             flex-direction: column;
             gap: 12px;
+            max-width: 500px;
+            max-height: 300px;
+            overflow-y: auto;
+            padding-right: 8px;
         }
 
         .stage-optional-inputs-label {
@@ -146,9 +150,38 @@
             white-space: nowrap;
         }
 
+        .stage-inputs-expanded {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            max-width: 500px;
+            max-height: 300px;
+            overflow-y: auto;
+            padding-right: 8px;
+            margin-top: 15px;
+        }
+
+        .stage-inputs-expanded::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .stage-inputs-expanded::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+
+        .stage-inputs-expanded::-webkit-scrollbar-thumb {
+            background: #ccc;
+            border-radius: 10px;
+        }
+
+        .stage-inputs-expanded::-webkit-scrollbar-thumb:hover {
+            background: #999;
+        }
+
         .stage-inputs-thumbnails {
             display: flex;
-            flex-wrap: nowrap;
+            flex-wrap: wrap;
             gap: 8px;
             justify-content: center;
             align-items: center;
@@ -156,7 +189,7 @@
 
         .stage-outputs-thumbnails {
             display: flex;
-            flex-wrap: nowrap;
+            flex-wrap: wrap;
             gap: 8px;
             margin-top: 10px;
             justify-content: center;
@@ -168,6 +201,28 @@
             flex-direction: column;
             gap: 12px;
             margin-top: 10px;
+            max-width: 500px;
+            max-height: 300px;
+            overflow-y: auto;
+            padding-right: 8px;
+        }
+
+        .stage-outputs-expanded::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .stage-outputs-expanded::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+
+        .stage-outputs-expanded::-webkit-scrollbar-thumb {
+            background: #ccc;
+            border-radius: 10px;
+        }
+
+        .stage-outputs-expanded::-webkit-scrollbar-thumb:hover {
+            background: #999;
         }
 
         .input-item {
@@ -183,6 +238,8 @@
             width: auto;
             white-space: nowrap;
             flex-shrink: 0;
+            position: relative;
+            z-index: 1;
         }
 
         .input-item.metadata {
@@ -223,7 +280,7 @@
         }
 
         .output-item.expanded {
-            display: block;
+            display: none;
             width: 100%;
             margin: 10px 0;
             padding: 15px;
@@ -232,6 +289,11 @@
             border-left: 4px solid #444b6a;
             cursor: pointer;
             transition: all 0.2s ease;
+            flex-shrink: 0;
+        }
+
+        .output-item.expanded.active {
+            display: block;
         }
 
         .output-item.expanded:hover {
@@ -529,23 +591,27 @@
         </div>
 
         <div class="pipeline-container">
-            <canvas id="pipeline-canvas" style="position: absolute; top: 0; left: 0; z-index: 4; pointer-events: none;"></canvas>
+            <svg id="pipeline-svg" style="position: absolute; top: 0; left: 0; z-index: 4; pointer-events: none;"></svg>
             <div class="pipeline">
                 <!-- Stage 1: Inputs -->
                 <div class="stage">
                     <div class="stage-inputs" id="inputs-section">
                         <div class="stage-inputs-thumbnails">
-                            <div class="input-item sequence" onclick="toggleInput(event)">FASTA file(s)</div>
-                            <div class="input-item metadata" onclick="toggleInput(event)">Metadata file(s)</div>
+                            <div class="input-item sequence" onclick="toggleInput(event, 0)">FASTA file(s)</div>
+                            <div class="input-item metadata" onclick="toggleInput(event, 1)">Metadata file(s)</div>
                         </div>
-                        <div class="stage-inputs-expanded" style="display:none;">
+                        <div class="stage-inputs-expanded">
                             <div class="output-item expanded sequence">
                                 <strong>FASTA file(s)</strong>
                                 <p>One or more sequence files in FASTA format</p>
+                                <p>FASTA format consists of a header line starting with ">" followed by the sequence data.</p>
+                                <p>A file can contain multiple sequences, each with its own header.</p>
                             </div>
                             <div class="output-item expanded metadata">
                                 <strong>Metadata file(s)</strong>
-                                <p>CSV or TSV files with sequence metadata (optional)</p>
+                                <p>CSV or TSV files with sequence metadata (optional).</p><p>Each file should contain a header row with column names and subsequent rows with metadata for each sequence.</p>
+                                <p>Metadata files should have a column that can be used to match the provided sequence IDs (default: "sample").</p>
+                                <p>Ideally, the metadata file(s) should also contain location and date information for each sequence.</p>
                             </div>
                         </div>
                     </div>
@@ -561,14 +627,15 @@
                     </div>
                     <div class="stage-outputs" id="seqqc-outputs">
                         <div class="stage-outputs-thumbnails">
-                            <div class="output-item thumbnail sequence" onclick="toggleOutput(event)">combined.fasta</div>
-                            <div class="output-item thumbnail metadata" onclick="toggleOutput(event)">seq-qc_report.html</div>
-                            <div class="output-item thumbnail metadata" onclick="toggleOutput(event)">Issues files</div>
+                            <div class="output-item thumbnail sequence" onclick="toggleOutput(event, 0)">combined.fasta</div>
+                            <div class="output-item thumbnail metadata" onclick="toggleOutput(event, 1)">seq-qc_report.html</div>
+                            <div class="output-item thumbnail metadata" onclick="toggleOutput(event, 2)">Issues files</div>
                         </div>
-                        <div class="stage-outputs-expanded" style="display:none;">
+                        <div class="stage-outputs-expanded">
                             <div class="output-item expanded sequence">
                                 <strong>combined.fasta</strong>
-                                <p>Combined sequences with harmonized headers</p>
+                                <p>Combined sequences with harmonized headers.</p>
+                                <p>By default raccoon will attempt to match sequence IDs with metadata and produce headers in the format "sample|location|YYYY-MM-DD".</p>
                             </div>
                             <div class="output-item expanded metadata">
                                 <strong>seq-qc_report.html</strong>
@@ -592,9 +659,9 @@
                     </div>
                     <div class="stage-outputs" id="mafft-outputs">
                         <div class="stage-outputs-thumbnails">
-                            <div class="output-item thumbnail sequence" onclick="toggleOutput(event)">alignment.fasta</div>
+                            <div class="output-item thumbnail sequence" onclick="toggleOutput(event, 0)">alignment.fasta</div>
                         </div>
-                        <div class="stage-outputs-expanded" style="display:none;">
+                        <div class="stage-outputs-expanded">
                             <div class="output-item expanded sequence">
                                 <strong>alignment.fasta</strong>
                                 <p>Multiple sequence alignment in FASTA format</p>
@@ -613,11 +680,11 @@
                     </div>
                     <div class="stage-outputs" id="alnqc-outputs">
                         <div class="stage-outputs-thumbnails">
-                            <div class="output-item thumbnail metadata" onclick="toggleOutput(event)">mask_sites.csv</div>
-                            <div class="output-item thumbnail metadata" onclick="toggleOutput(event)">aln-qc_report.html</div>
-                            <div class="output-item thumbnail metadata" onclick="toggleOutput(event)">alignment_flags.tsv</div>
+                            <div class="output-item thumbnail metadata" onclick="toggleOutput(event, 0)">mask_sites.csv</div>
+                            <div class="output-item thumbnail metadata" onclick="toggleOutput(event, 1)">aln-qc_report.html</div>
+                            <div class="output-item thumbnail metadata" onclick="toggleOutput(event, 2)">alignment_flags.tsv</div>
                         </div>
-                        <div class="stage-outputs-expanded" style="display:none;">
+                        <div class="stage-outputs-expanded">
                             <div class="output-item expanded metadata">
                                 <strong>mask_sites.csv</strong>
                                 <p>Flagged sites (clustered SNPs, N-adjacent, gap-adjacent, frame breaks)</p>
@@ -644,9 +711,9 @@
                     </div>
                     <div class="stage-outputs" id="mask-outputs">
                         <div class="stage-outputs-thumbnails">
-                            <div class="output-item thumbnail sequence" onclick="toggleOutput(event)">alignment.masked.fasta</div>
+                            <div class="output-item thumbnail sequence" onclick="toggleOutput(event, 0)">alignment.masked.fasta</div>
                         </div>
-                        <div class="stage-outputs-expanded" style="display:none;">
+                        <div class="stage-outputs-expanded">
                             <div class="output-item expanded sequence">
                                 <strong>alignment.masked.fasta</strong>
                                 <p>Alignment with flagged sites masked</p>
@@ -663,7 +730,7 @@
                             <div class="stage-optional-inputs-thumbnails">
                                 <div class="input-item metadata" onclick="toggleOptionalInput(event)">Outgroup IDs</div>
                             </div>
-                            <div class="stage-optional-inputs-expanded" style="display:none;">
+                            <div class="stage-optional-inputs-expanded">
                                 <div class="output-item expanded metadata">
                                     <strong>Outgroup IDs</strong>
                                     <p>Comma-separated sequence IDs to use as outgroup for rooting</p>
@@ -679,10 +746,10 @@
                     </div>
                     <div class="stage-outputs" id="iqtree-outputs">
                         <div class="stage-outputs-thumbnails">
-                            <div class="output-item thumbnail sequence" onclick="toggleOutput(event)">alignment.treefile</div>
-                            <div class="output-item thumbnail metadata" onclick="toggleOutput(event)">alignment.state</div>
+                            <div class="output-item thumbnail sequence" onclick="toggleOutput(event, 0)">alignment.treefile</div>
+                            <div class="output-item thumbnail metadata" onclick="toggleOutput(event, 1)">alignment.state</div>
                         </div>
-                        <div class="stage-outputs-expanded" style="display:none;">
+                        <div class="stage-outputs-expanded">
                             <div class="output-item expanded sequence">
                                 <strong>alignment.treefile</strong>
                                 <p>Phylogenetic tree in Newick format</p>
@@ -705,11 +772,11 @@
                     </div>
                     <div class="stage-outputs" id="treeqc-outputs">
                         <div class="stage-outputs-thumbnails">
-                            <div class="output-item thumbnail metadata" onclick="toggleOutput(event)">tree_qc_report.html</div>
-                            <div class="output-item thumbnail metadata" onclick="toggleOutput(event)">flagged_sequences.txt</div>
-                            <div class="output-item thumbnail metadata" onclick="toggleOutput(event)">Additional reports</div>
+                            <div class="output-item thumbnail metadata" onclick="toggleOutput(event, 0)">tree_qc_report.html</div>
+                            <div class="output-item thumbnail metadata" onclick="toggleOutput(event, 1)">flagged_sequences.txt</div>
+                            <div class="output-item thumbnail metadata" onclick="toggleOutput(event, 2)">Additional reports</div>
                         </div>
-                        <div class="stage-outputs-expanded" style="display:none;">
+                        <div class="stage-outputs-expanded">
                             <div class="output-item expanded metadata">
                                 <strong>tree_qc_report.html</strong>
                                 <p>Interactive tree visualization with QC findings</p>
@@ -978,44 +1045,32 @@
     </div>
 
     <script>
-        function toggleOutput(event) {
+        function toggleOutput(event, itemIndex) {
+            event.stopPropagation();
             const clicked = event.currentTarget;
             const stageOutputs = clicked.closest('.stage-outputs');
             const expandedContainer = stageOutputs.querySelector('.stage-outputs-expanded');
-            const thumbnailsContainer = stageOutputs.querySelector('.stage-outputs-thumbnails');
+            const expandedItems = expandedContainer.querySelectorAll('.output-item.expanded');
+            const itemToToggle = expandedItems[itemIndex];
             
-            if (expandedContainer.style.display === 'none') {
-                expandedContainer.style.display = 'flex';
-                thumbnailsContainer.style.display = 'none';
-                // Add click handler to collapse when clicking expanded items
-                expandedContainer.querySelectorAll('.output-item.expanded').forEach(item => {
-                    item.onclick = () => toggleOutput({ currentTarget: clicked });
-                });
-            } else {
-                expandedContainer.style.display = 'none';
-                thumbnailsContainer.style.display = 'flex';
+            if (itemToToggle) {
+                itemToToggle.classList.toggle('active');
             }
             
             // Redraw arrows after accordion toggles
             setTimeout(redrawConnections, 50);
         }
 
-        function toggleInput(event) {
+        function toggleInput(event, itemIndex) {
+            event.stopPropagation();
             const clicked = event.currentTarget;
             const stageInputs = clicked.closest('.stage-inputs');
             const expandedContainer = stageInputs.querySelector('.stage-inputs-expanded');
-            const thumbnailsContainer = stageInputs.querySelector('.stage-inputs-thumbnails');
+            const expandedItems = expandedContainer.querySelectorAll('.output-item.expanded');
+            const itemToToggle = expandedItems[itemIndex];
             
-            if (expandedContainer.style.display === 'none') {
-                expandedContainer.style.display = 'flex';
-                thumbnailsContainer.style.display = 'none';
-                // Add click handler to collapse when clicking expanded items
-                expandedContainer.querySelectorAll('.output-item.expanded').forEach(item => {
-                    item.onclick = () => toggleInput({ currentTarget: clicked });
-                });
-            } else {
-                expandedContainer.style.display = 'none';
-                thumbnailsContainer.style.display = 'flex';
+            if (itemToToggle) {
+                itemToToggle.classList.toggle('active');
             }
             
             // Redraw arrows after accordion toggles
@@ -1023,21 +1078,15 @@
         }
 
         function toggleOptionalInput(event) {
+            event.stopPropagation();
             const clicked = event.currentTarget;
             const stageOptionalInputs = clicked.closest('.stage-optional-inputs');
             const expandedContainer = stageOptionalInputs.querySelector('.stage-optional-inputs-expanded');
-            const thumbnailsContainer = stageOptionalInputs.querySelector('.stage-optional-inputs-thumbnails');
+            const expandedItems = expandedContainer.querySelectorAll('.output-item.expanded');
+            const itemToToggle = expandedItems[0];
             
-            if (expandedContainer.style.display === 'none') {
-                expandedContainer.style.display = 'flex';
-                thumbnailsContainer.style.display = 'none';
-                // Add click handler to collapse when clicking expanded items
-                expandedContainer.querySelectorAll('.output-item.expanded').forEach(item => {
-                    item.onclick = () => toggleOptionalInput({ currentTarget: clicked });
-                });
-            } else {
-                expandedContainer.style.display = 'none';
-                thumbnailsContainer.style.display = 'flex';
+            if (itemToToggle) {
+                itemToToggle.classList.toggle('active');
             }
             
             // Redraw arrows after accordion toggles
@@ -1109,65 +1158,71 @@
         // Define stage order for detecting sequential connections
         const stageOrder = ['inputs-section', 'seqqc-box', 'seqqc-outputs', 'mafft-box', 'mafft-outputs', 'alnqc-box', 'alnqc-outputs', 'mask-box', 'mask-outputs', 'iqtree-box', 'iqtree-outputs', 'treeqc-box'];
 
-        function drawArrowhead(ctx, fromX, fromY, toX, toY) {
+        function drawArrowhead(svg, fromX, fromY, toX, toY) {
             const headlen = 15;
             const angle = Math.atan2(toY - fromY, toX - fromX);
             
-            // Draw arrowhead
-            ctx.fillStyle = '#444b6a';
-            ctx.beginPath();
-            ctx.moveTo(toX, toY);
-            ctx.lineTo(toX - headlen * Math.cos(angle - Math.PI / 6), toY - headlen * Math.sin(angle - Math.PI / 6));
-            ctx.lineTo(toX - headlen * Math.cos(angle + Math.PI / 6), toY - headlen * Math.sin(angle + Math.PI / 6));
-            ctx.closePath();
-            ctx.fill();
+            const points = [
+                [toX, toY],
+                [toX - headlen * Math.cos(angle - Math.PI / 6), toY - headlen * Math.sin(angle - Math.PI / 6)],
+                [toX - headlen * Math.cos(angle + Math.PI / 6), toY - headlen * Math.sin(angle + Math.PI / 6)]
+            ];
+            
+            const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+            polygon.setAttribute('points', points.map(p => p.join(',')).join(' '));
+            polygon.setAttribute('fill', '#444b6a');
+            svg.appendChild(polygon);
         }
 
-        function drawVerticalLine(ctx, startX, startY, endX, endY, isDashed = false) {
-            ctx.strokeStyle = '#444b6a';
-            ctx.lineWidth = 2.5;
-            ctx.lineCap = 'round';
-            ctx.lineJoin = 'round';
+        function drawVerticalLine(svg, startX, startY, endX, endY, isDashed = false) {
+            const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            line.setAttribute('x1', startX);
+            line.setAttribute('y1', startY);
+            line.setAttribute('x2', endX);
+            line.setAttribute('y2', endY);
+            line.setAttribute('stroke', '#444b6a');
+            line.setAttribute('stroke-width', '2.5');
+            line.setAttribute('stroke-linecap', 'round');
+            line.setAttribute('stroke-linejoin', 'round');
             
             if (isDashed) {
-                ctx.setLineDash([4, 4]);
+                line.setAttribute('stroke-dasharray', '4,4');
             }
-
-            ctx.beginPath();
-            ctx.moveTo(startX, startY);
-            ctx.lineTo(endX, endY);
-            ctx.stroke();
-            ctx.setLineDash([]);
             
-            // Draw arrowhead
-            drawArrowhead(ctx, startX, startY - 10, endX, endY);
+            svg.appendChild(line);
+            
+            drawArrowhead(svg, startX, startY - 10, endX, endY);
         }
 
-        function drawAngularPath(ctx, startX, startY, endX, endY, isDashed = false, toEdge = 'right', fromOptional = false) {
+        function drawAngularPath(svg, startX, startY, endX, endY, isDashed = false, toEdge = 'right', fromOptional = false) {
             const container = document.querySelector('.pipeline-container');
             const containerRect = container.getBoundingClientRect();
             
-            ctx.strokeStyle = '#444b6a';
-            ctx.lineWidth = 2.5;
+            const path = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+            path.setAttribute('stroke', '#444b6a');
+            path.setAttribute('stroke-width', '2.5');
+            path.setAttribute('stroke-linecap', 'round');
+            path.setAttribute('stroke-linejoin', 'round');
+            path.setAttribute('fill', 'none');
+            
             if (isDashed) {
-                ctx.setLineDash([4, 4]);
+                path.setAttribute('stroke-dasharray', '4,4');
             }
-            ctx.lineCap = 'round';
-            ctx.lineJoin = 'round';
 
-            ctx.beginPath();
+            let points;
             
             if (fromOptional) {
                 // From optional input: go straight down, then turn 90 degrees and go horizontal
-                ctx.moveTo(startX, startY);
-                ctx.lineTo(startX, endY);           // Go straight down to destination y
-                ctx.lineTo(endX, endY);             // Go horizontal to left edge center
-                ctx.stroke();
-                ctx.setLineDash([]);
-                // Arrow coming from above, pointing horizontally left-to-right
-                drawArrowhead(ctx, startX - 10, endY, endX, endY);
+                points = [
+                    [startX, startY],
+                    [startX, endY],
+                    [endX, endY]
+                ];
+                path.setAttribute('points', points.map(p => p.join(',')).join(' '));
+                svg.appendChild(path);
+                drawArrowhead(svg, startX - 10, endY, endX, endY);
             } else {
-                // From outputs: go right then down then left (existing behavior)
+                // From outputs: go right then down then left
                 let rightOffset;
                 const allThumbnails = container.querySelectorAll('.stage-outputs-thumbnails');
                 let maxThumbnailRight = 0;
@@ -1182,14 +1237,15 @@
                 rightOffset = Math.max(150, maxThumbnailRight + thumbnailPadding);
                 rightOffset = Math.max(rightOffset, container.offsetWidth * 0.15);
                 
-                ctx.moveTo(startX, startY);
-                ctx.lineTo(rightOffset, startY);           // Go right to offset point
-                ctx.lineTo(rightOffset, endY);             // Go vertically to destination
-                ctx.lineTo(endX, endY);                    // Come back to endpoint (right edge center)
-                ctx.stroke();
-                ctx.setLineDash([]);
-                // Arrow coming from right, pointing left-to-right toward endpoint
-                drawArrowhead(ctx, rightOffset - 10, endY, endX, endY);
+                points = [
+                    [startX, startY],
+                    [rightOffset, startY],
+                    [rightOffset, endY],
+                    [endX, endY]
+                ];
+                path.setAttribute('points', points.map(p => p.join(',')).join(' '));
+                svg.appendChild(path);
+                drawArrowhead(svg, rightOffset - 10, endY, endX, endY);
             }
         }
 
@@ -1202,15 +1258,17 @@
         }
 
         function redrawConnections() {
-            const canvas = document.getElementById('pipeline-canvas');
-            if (!canvas) return;
+            const svg = document.getElementById('pipeline-svg');
+            if (!svg) return;
 
             const container = document.querySelector('.pipeline-container');
-            canvas.width = container.offsetWidth;
-            canvas.height = container.offsetHeight;
-
-            const ctx = canvas.getContext('2d');
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            svg.setAttribute('width', container.offsetWidth);
+            svg.setAttribute('height', container.offsetHeight);
+            
+            // Clear existing content
+            while (svg.firstChild) {
+                svg.removeChild(svg.firstChild);
+            }
 
             // Draw each connection
             pipelineConnections.forEach(connection => {
@@ -1253,10 +1311,10 @@
                 }
 
                 if (isSequential) {
-                    drawVerticalLine(ctx, startX, startY, endX, endY, connection.dashed);
+                    drawVerticalLine(svg, startX, startY, endX, endY, connection.dashed);
                 } else {
                     const fromOptional = connection.from === 'iqtree-optional';
-                    drawAngularPath(ctx, startX, startY, endX, endY, connection.dashed, connection.toEdge, fromOptional);
+                    drawAngularPath(svg, startX, startY, endX, endY, connection.dashed, connection.toEdge, fromOptional);
                 }
             });
         }
