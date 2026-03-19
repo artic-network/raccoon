@@ -41,6 +41,11 @@
     .table-scroll { max-height: 520px; overflow-y: auto; }
     .plot-reset-button { position: absolute; top: 8px; right: 8px; z-index: 10; background: #ffffff; border: 1px solid #ddd; border-radius: 6px; padding: 4px 8px; font-size: 12px; cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,0.08); }
     .plot-reset-wrap { position: relative; }
+    .summary-box { background: #f6f3f9; border: 1px solid #e2dbea; border-radius: 6px; padding: 12px; margin-bottom: 12px; }
+    .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+    .summary-item { display: flex; flex-direction: column; gap: 4px; }
+    .summary-label { font-weight: 600; font-size: 0.9rem; color: #666; }
+    .summary-value { font-size: 1.1rem; color: #222; }
     @media print {
       .dataTables_filter, .dataTables_length, .dataTables_info, .dataTables_paginate { display: none !important; }
       details summary { list-style: none; }

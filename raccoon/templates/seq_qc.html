@@ -187,6 +187,40 @@
 
     <div id="final" class="card">
       <h3>6. Final dataset</h3>
+      {% if final_dataset_summary %}
+      <div class="summary-box">
+        <div class="summary-grid">
+          <div class="summary-item">
+            <span class="summary-label">Sequences:</span>
+            <span class="summary-value">{{ final_dataset_summary.num_sequences }}</span>
+          </div>
+          <div class="summary-item">
+            <span class="summary-label">Locations:</span>
+            <span class="summary-value">{{ final_dataset_summary.num_locations }}</span>
+          </div>
+          <div class="summary-item">
+            <span class="summary-label">Date range:</span>
+            <span class="summary-value">{{ final_dataset_summary.date_range or 'N/A' }}</span>
+          </div>
+          <div class="summary-item">
+            <span class="summary-label">Length (mean) (bases):</span>
+            <span class="summary-value">{{ final_dataset_summary.length_mean }}</span>
+          </div>
+          <div class="summary-item">
+            <span class="summary-label">Length (min–max) (bases):</span>
+            <span class="summary-value">{{ final_dataset_summary.length_min }}–{{ final_dataset_summary.length_max }}</span>
+          </div>
+          <div class="summary-item">
+            <span class="summary-label">N content (mean):</span>
+            <span class="summary-value">{{ final_dataset_summary.n_content_mean }}</span>
+          </div>
+          <div class="summary-item">
+            <span class="summary-label">N content (min–max):</span>
+            <span class="summary-value">{{ final_dataset_summary.n_content_min }}–{{ final_dataset_summary.n_content_max }}</span>
+          </div>
+        </div>
+      </div>
+      {% endif %}
       <div class="table-wrap table-scroll">
         <table class="datatable">
           <thead>

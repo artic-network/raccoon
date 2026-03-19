@@ -606,6 +606,54 @@ def generate_combine_report(
         except Exception:
             final_rows = []
 
+    # Calculate final dataset summary statistics
+    final_dataset_summary = {}
+    if final_rows:
+        lengths = [row["length"] for row in final_rows]
+        n_contents = [row["n_content"] for row in final_rows]
+        
+        # Build date range with precision support from date_location_records
+        date_range_str = ""
+        if date_location_records:
+            try:
+                dates = []
+                precisions = []
+                for record in date_location_records:
+                    date_str = record["date"]
+                    precision = _detect_date_precision(date_str)
+                    precisions.append(precision)
+                    parsed_date = _parse_flexible_date(date_str)
+                    if parsed_date:
+                        dates.append(parsed_date)
+                
+                if dates:
+                    dmin = min(dates)
+                    dmax = max(dates)
+                    
+                    # Get precision for min and max dates
+                    min_idx = dates.index(dmin)
+                    max_idx = dates.index(dmax)
+                    min_precision = precisions[min_idx] if min_idx < len(precisions) else 'day'
+                    max_precision = precisions[max_idx] if max_idx < len(precisions) else 'day'
+                    
+                    min_str = _format_date_with_precision(dmin, min_precision)
+                    max_str = _format_date_with_precision(dmax, max_precision)
+                    date_range_str = f"{min_str} → {max_str}"
+            except Exception:
+                date_range_str = ""
+        
+        final_dataset_summary = {
+            "num_sequences": len(final_rows),
+            "num_locations": header_stats.get("locations", 0),
+            "date_range": date_range_str,
+            "length_mean": f"{sum(lengths) / len(lengths):.1f}",
+            "length_max": f"{max(lengths)}",
+            "length_min": f"{min(lengths)}",
+            "n_content_mean": f"{sum(n_contents) / len(n_contents):.4f}",
+            "n_content_max": max(n_contents),
+            "n_content_min": min(n_contents),
+        }
+
     cmd_parts = ["raccoon", "seq-qc"]
     cmd_parts.extend([os.path.basename(p) for p in input_fastas])
     if output_fasta:
@@ -654,6 +702,7 @@ def generate_combine_report(
         "metadata_tables": metadata_tables,
         "dataset_plot_html": dataset_plot_html,
         "final_rows": final_rows,
+        "final_dataset_summary": final_dataset_summary,
         "datafiles": {
             "inputs": provenance_inputs,
             "metadata": provenance_metadata,
