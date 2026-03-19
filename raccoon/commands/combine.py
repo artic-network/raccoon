@@ -22,21 +22,32 @@ def parse_header_template(template: str) -> Tuple[str, List[str]]:
     Returns:
         Tuple of (separator, field_names_list)
         e.g. ("|", ["sample", "location", "date"])
+        For single field templates like '{sample}', returns ("", ["sample"])
     """
-    # Find all {field} placeholders
-    field_pattern = r'\{(\w+)\}'
+    # Find all {field} placeholders - allows spaces and special characters in field names
+    field_pattern = r'\{([^}]+)\}'
     fields = re.findall(field_pattern, template)
     
     if not fields:
         raise ValueError(f"Header template must contain at least one field placeholder like {{sample}}: {template}")
     
+    # For single field, no separator is needed
+    if len(fields) == 1:
+        return "", fields
+    
     # Determine separator by removing field placeholders
     separator = re.sub(field_pattern, '', template)
     
+    # Check that separator is not empty when there are multiple fields
+    if not separator:
+        raise ValueError(f"Header template must have a separator between fields: {template}")
+    
+    # Check that all separator characters are the same
     if len(set(separator)) > 1:
         raise ValueError(f"Header template must use a single consistent separator between fields (e.g. '|'): {template}")
-
-    return separator, fields
+    
+    # Return just a single separator character
+    return separator[0], fields
 
 
 def _sanitize_field(value: str) -> str:
@@ -144,6 +155,11 @@ def harmonize_date(date_str: str) -> Tuple[Optional[str], Optional[str]]:
         '%d %B %Y',      # 15 January 2024
         '%d %b %Y',      # 15 Jan 2024
         '%Y%m%d',        # 20240115
+        '%Y-%m',         # 2024-01
+        '%Y/%m',         # 2024/01
+        '%Y.%m',         # 2024.01
+        '%Y%m',          # 202401
+        '%Y',            # 2024
     ]
     
     for fmt in common_formats:
@@ -374,7 +390,54 @@ def format_header(
     return f"{record_id}{sep}{location}{sep}{date}"
 
 
+def extract_date_from_text(text: str) -> Optional[str]:
+    """Try to extract and parse a date from any text (e.g., sequence header).
+    
+    Searches for common date patterns and attempts to parse them.
+    
+    Args:
+        text: Text to search for dates
+        
+    Returns:
+        Harmonized date string if found, None otherwise
+    """
+    if not text:
+        return None
+    
+    # Common date patterns to search for
+    patterns = [
+        r'\d{4}-\d{2}-\d{2}',      # YYYY-MM-DD
+        r'\d{4}/\d{2}/\d{2}',      # YYYY/MM/DD
+        r'\d{4}\.\d{2}\.\d{2}',    # YYYY.MM.DD
+        r'\d{2}-\d{2}-\d{4}',      # DD-MM-YYYY or MM-DD-YYYY
+        r'\d{2}/\d{2}/\d{4}',      # DD/MM/YYYY or MM/DD/YYYY
+        r'\d{2}\.\d{2}\.\d{4}',    # DD.MM.YYYY
+        r'\d{8}',                   # YYYYMMDD
+        r'\d{4}-\d{2}',             # YYYY-MM
+        r'\d{4}/\d{2}',             # YYYY/MM
+        r'\d{4}\.\d{2}',            # YYYY.MM
+        r'\d{6}',                   # YYYYMM (but must be distinct from YYYYMMDD)
+        r'\d{4}',                   # YYYY
+    ]
+    
+    for pattern in patterns:
+        matches = re.findall(pattern, text)
+        for match in matches:
+            harmonized, _ = harmonize_date(match)
+            if harmonized:
+                return harmonized
+    
+    return None
+
+
 def write_fasta_record(handle, header: str, sequence: str) -> None:
+    """Write a FASTA record to a file handle.
+    
+    Args:
+        handle: File handle to write to
+        header: FASTA header (without the '>')
+        sequence: Sequence string
+    """
     sequence = "".join(sequence.split()).upper()
     handle.write(f">{header}\n{sequence}\n")
 
@@ -422,6 +485,7 @@ def main(args):
         seq_id_field_index = getattr(args, "seq_id_field_index", rc.DEFAULT_ID_FIELD_INDEX)
         min_length = getattr(args, "min_length", None)
         max_n_content = getattr(args, "max_n_content", None)
+        require_date = getattr(args, "require_date", False)
         header_fields_template = getattr(args, "header_fields", None)
         header_separator = getattr(args, "header_separator", rc.DEFAULT_HEADER_SEPARATOR)
 
@@ -513,6 +577,25 @@ def main(args):
                         reasons.append(f"length < {min_length}")
                     if max_n_content is not None and n_prop > max_n_content:
                         reasons.append(f"N content > {max_n_content}")
+                    
+                    # Check for required date if metadata is available
+                    if require_date and metadata_map is not None:
+                        if metadata_row and date_value:
+                            # Try to harmonize the date to verify it's parsable
+                            harmonized_date, _ = harmonize_date(date_value)
+                            if not harmonized_date:
+                                reasons.append("unparsable date in metadata")
+                        elif not metadata_row:
+                            # No metadata row - try to find a date in the sequence header
+                            header_date = extract_date_from_text(record.id)
+                            if not header_date:
+                                reasons.append("no parseable date in header or metadata")
+                        elif metadata_row and not date_value:
+                            # Has metadata row but no date field - try header
+                            header_date = extract_date_from_text(record.id)
+                            if not header_date:
+                                reasons.append("missing date in metadata and no parseable date in header")
+                    
                     status = "filtered" if reasons else "kept"
                     if metadata_map is not None:
                         if metadata_row:
