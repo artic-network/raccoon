@@ -61,6 +61,15 @@ def main(args):
         if genbank and not io.validate_genbank_file(genbank):
             return 1
         
+        reference_fasta = getattr(args, 'reference_fasta', None)
+        if reference_fasta and not io.validate_alignment_file(reference_fasta):
+            return 1
+        
+        # Validate that both genbank and reference_fasta are not provided
+        if genbank and reference_fasta:
+            logging.error("Cannot use both --genbank and --reference-fasta; provide one or the other")
+            return 1
+        
         reference = getattr(args, rc.KEY_REFERENCE_ID, None)
         max_n_content = getattr(args, rc.KEY_MAX_N_CONTENT, rc.DEFAULT_MAX_N_CONTENT)
         cluster_window = getattr(args, rc.KEY_CLUSTER_WINDOW, rc.DEFAULT_CLUSTER_WINDOW)
@@ -82,6 +91,7 @@ def main(args):
             args.alignment,
             outdir=outdir,
             genbank_path=genbank,
+            reference_fasta_path=reference_fasta,
             reference_id=reference,
             max_n_content=max_n_content,
             cluster_window=cluster_window,

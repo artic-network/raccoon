@@ -325,6 +325,7 @@ def run_alignment_qc(
     alignment_path,
     outdir,
     genbank_path=None,
+    reference_fasta_path=None,
     reference_id=None,
     max_n_content=DEFAULT_MAX_N_CONTENT,
     n_window=2,
@@ -342,6 +343,29 @@ def run_alignment_qc(
     Returns a dict summary with details.
     """
     aln = read_alignment(alignment_path)
+    
+    # Validate reference FASTA if provided
+    if reference_fasta_path:
+        try:
+            ref_seqs = list(SeqIO.parse(reference_fasta_path, 'fasta'))
+            if not ref_seqs:
+                logging.error(f"Reference FASTA file is empty: {reference_fasta_path}")
+                return {}
+            
+            # Use the first sequence as the reference
+            ref_rec = ref_seqs[0]
+            ref_len = len(ref_rec.seq)
+            
+            # Check if alignment length matches reference length
+            aln_len = aln.get_alignment_length()
+            if aln_len != ref_len:
+                logging.warning(f"Alignment length ({aln_len}) does not match reference FASTA length ({ref_len}). "
+                              f"This may indicate the alignment was not built against this reference.")
+            else:
+                logging.info(f"Alignment length ({aln_len}) matches reference FASTA length")
+        except Exception as exc:
+            logging.error(f"Error reading reference FASTA file: {exc}")
+            return {}
     
     summary = {}
     flagged_n = find_high_N_sequences(aln, threshold=max_n_content)
