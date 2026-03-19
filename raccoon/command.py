@@ -26,6 +26,7 @@ def build_parser():
     c.add_argument('--metadata-date-field', default=rc.DEFAULT_DATE_FIELD, help=f'Metadata date column (default: {rc.DEFAULT_DATE_FIELD})')
     c.add_argument('--seq-id-delimiter', default=rc.DEFAULT_ID_DELIMITER, help=f'Delimiter for parsing IDs from input headers (default: {rc.DEFAULT_ID_DELIMITER})')
     c.add_argument('--seq-id-field-index', type=int, default=rc.DEFAULT_ID_FIELD_INDEX, help=f'0-based field index for parsing IDs from input headers (default: {rc.DEFAULT_ID_FIELD_INDEX})')
+    c.add_argument('--require-date', action='store_true', dest="require_date", help='Require date field to be present and parsable (otherwise sequence is filtered out)')
     c.add_argument('--min-length', type=int, default=None, help='Minimum sequence length to keep')
     c.add_argument('--max-n-content', type=float, default=None, help='Maximum N content proportion to keep (e.g. 0.1)')
     c.add_argument('--header-fields', default=None, help=f'Template for constructing harmonised sequence header (e.g. "{rc.DEFAULT_HEADER_FIELDS}")')
