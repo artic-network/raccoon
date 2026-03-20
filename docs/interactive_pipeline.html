@@ -226,6 +226,32 @@
             background: #999;
         }
 
+        .stage-alignment-methods {
+            display: flex;
+            gap: 50px;
+            justify-content: center;
+            align-items: flex-start;
+            width: 100%;
+        }
+
+        .alignment-method {
+            flex: 1;
+            max-width: 380px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .alignment-method-divider {
+            text-align: center;
+            color: #ccc;
+            font-size: 1.2em;
+            padding: 0 20px;
+            font-weight: 300;
+            margin-top: 40px;
+        }
+
         .input-item {
             background: #82979a;
             color: white;
@@ -656,22 +682,51 @@
                     </div>
                 </div>
 
-                <!-- Stage 3: Alignment -->
+                <!-- Stage 3: Alignment Methods (MAFFT or Reference Mapping) -->
                 <div class="stage">
-                    <div class="stage-process">
-                        <div class="process-box external" id="mafft-box" onclick="openModal('alignment')">
-                            MAFFT
+                    <div class="stage-alignment-methods">
+                        <!-- Method 1: MAFFT -->
+                        <div class="alignment-method">
+                            <div class="stage-process">
+                                <div class="process-box external" id="mafft-box" onclick="openModal('alignment')">
+                                    MAFFT
+                                </div>
+                                <span class="stage-label">Multiple Sequence Alignment</span>
+                            </div>
+                            <div class="stage-outputs" id="mafft-outputs">
+                                <div class="stage-outputs-thumbnails">
+                                    <div class="output-item thumbnail sequence" onclick="toggleOutput(event, 0)">alignment.fasta</div>
+                                </div>
+                                <div class="stage-outputs-expanded">
+                                    <div class="output-item expanded sequence">
+                                        <strong>alignment.fasta</strong>
+                                        <p>Multiple sequence alignment in FASTA format</p>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                        <span class="stage-label">Multiple Sequence Alignment</span>
-                    </div>
-                    <div class="stage-outputs" id="mafft-outputs">
-                        <div class="stage-outputs-thumbnails">
-                            <div class="output-item thumbnail sequence" onclick="toggleOutput(event, 0)">alignment.fasta</div>
-                        </div>
-                        <div class="stage-outputs-expanded">
-                            <div class="output-item expanded sequence">
-                                <strong>alignment.fasta</strong>
-                                <p>Multiple sequence alignment in FASTA format</p>
+
+                        <!-- Divider -->
+                        <div class="alignment-method-divider">or</div>
+
+                        <!-- Method 2: Alignment vs Reference -->
+                        <div class="alignment-method">
+                            <div class="stage-process">
+                                <div class="process-box external" id="alnvsref-box" onclick="openModal('alnvsref')">
+                                    Reference Mapping
+                                </div>
+                                <span class="stage-label">Alignment vs Reference</span>
+                            </div>
+                            <div class="stage-outputs" id="alnvsref-outputs">
+                                <div class="stage-outputs-thumbnails">
+                                    <div class="output-item thumbnail sequence" onclick="toggleOutput(event, 0)">alignment.fasta</div>
+                                </div>
+                                <div class="stage-outputs-expanded">
+                                    <div class="output-item expanded sequence">
+                                        <strong>alignment.fasta</strong>
+                                        <p>Multiple sequence alignment against reference in FASTA format</p>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -1031,6 +1086,64 @@
         </div>
     </div>
 
+    <div id="alnvsrefModal" class="details-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Reference Mapping - Alignment vs Reference</h2>
+                <button class="close-btn" onclick="closeModal('alnvsref')">&times;</button>
+            </div>
+            <div class="modal-section">
+                <h3>Purpose</h3>
+                <p>Alternative to multiple sequence alignment. Maps all sequences against a reference genome using minimap2 and converts the SAM alignment to FASTA format using gofasta. This approach is a useful speed-up for large datasets or for analyses where you want to maintain consistent coordinates with a known reference.</p>
+            </div>
+            <div class="modal-section">
+                <h3>Installation</h3>
+                <div class="modal-command">conda install -c bioconda minimap2 gofasta</div>
+            </div>
+            <div class="modal-section">
+                <h3>Workflow</h3>
+                <p><strong>Step 1 - Sequence Mapping with minimap2:</strong></p>
+                <div class="modal-command">minimap2 -a -x asm20 -rmq=no --junc-bonus=0 --for-only --sam-hit-only --secondary=no --score-N=0 -t {threads} {reference} - -o {output.sam}</div>
+                <p><strong>Step 2 - Convert to Multiple Alignment with gofasta:</strong></p>
+                <div class="modal-command">gofasta sam toMultiAlign \<br/>
+                    -s {input.sam} \<br/>
+                    -t {threads} \<br/>
+                    --reference {reference} \<br/>
+                    --trimstart {trim_start} \<br/>
+                    --trimend {trim_end} \<br/>
+                    --trim \<br/>
+                    --pad -o {output.fasta}</div>
+            </div>
+            <div class="modal-section">
+                <h3>Key Parameters</h3>
+                <ul>
+                    <li><strong>-x asm20:</strong> Preset for mapping asm5/asm10/asm20 genomes to themselves</li>
+                    <li><strong>-rmq=no:</strong> Don't use the minigraph chaining algorithm</li>
+                    <li><strong>--for-only:</strong> Only consider forward strand</li>
+                    <li><strong>--sam-hit-only:</strong> Output queries with hits only</li>
+                    <li><strong>--secondary=no:</strong> Do not output secondary alignments</li>
+                    <li><strong>--score-N=0:</strong> Score a mismatch involving ambiguous bases as 0</li>
+                    <li><strong>-t:</strong> Number of threads</li>
+                    <li><strong>--trimstart/--trimend:</strong> Positions to trim reference at start/end</li>
+                    <li><strong>--trim:</strong> Soft mask bases outside trim boundaries</li>
+                    <li><strong>--pad:</strong> Pad with end of alignment with Ns if query doesn't cover reference region</li>
+                </ul>
+            </div>
+            <div class="modal-section">
+                <h3>When to Use</h3>
+                <ul>
+                    <li>For a huge speed up on large datasets with high similarity to the reference (e.g. heavily sampled outbreak)</li>
+                    <li>To maintain consistent coordinate systems across analyses</li>
+                </ul>
+            </div>
+            <div class="modal-section">
+                <h3>Note</h3>
+                <p><strong>External tools:</strong> Not part of raccoon. Install minimap2 and gofasta separately using Conda or your package manager.</p>
+            </div>
+            <a href="https://github.com/lh3/minimap2" class="learn-more" target="_blank">→ minimap2 Documentation</a>
+        </div>
+    </div>
+
     <div id="iqtreeModal" class="details-modal">
         <div class="modal-content">
             <div class="modal-header">
@@ -1127,6 +1240,7 @@
                 'mask': 'maskModal',
                 'treeqc': 'treeqcModal',
                 'alignment': 'alignmentModal',
+                'alnvsref': 'alnvsrefModal',
                 'iqtree': 'iqtreeModal'
             };
             const modal = document.getElementById(modalMap[stage]);
@@ -1143,6 +1257,7 @@
                 'mask': 'maskModal',
                 'treeqc': 'treeqcModal',
                 'alignment': 'alignmentModal',
+                'alnvsref': 'alnvsrefModal',
                 'iqtree': 'iqtreeModal'
             };
             const modal = document.getElementById(modalMap[stage]);
@@ -1173,12 +1288,14 @@
         // Canvas-based arrow system for pipeline connections
         const pipelineConnections = [
             { from: 'inputs-section', to: 'seqqc-box', dashed: false },
-            { from: 'seqqc-outputs', to: 'mafft-box', dashed: false },
-            { from: 'mafft-outputs', to: 'alnqc-box', dashed: false },
-            { from: 'alnqc-outputs', to: 'mask-box', dashed: true },
+            { from: 'seqqc-outputs', to: 'mafft-box', dashed: true, forceAngular: true, routingType: 'left-join', drawStemAbove: true },
+            { from: 'seqqc-outputs', to: 'alnvsref-box', dashed: true, forceAngular: true, routingType: 'right-join' },
+            { from: 'mafft-outputs', to: 'alnqc-box', dashed: true, forceAngular: true, routingType: 'left-to-left', drawStemAbove: true },
+            { from: 'alnvsref-outputs', to: 'alnqc-box', dashed: true, forceAngular: true, routingType: 'right-to-right' },
+            { from: 'alnqc-outputs', to: 'mask-box', dashed: true, drawStemAbove: true },
+            { from: 'alnqc-outputs', to: 'iqtree-box', dashed: true, forceAngular: true },  // Skip mask step
             { from: 'mask-outputs', to: 'iqtree-box', dashed: false },
             { from: 'iqtree-outputs', to: 'treeqc-box', dashed: false },
-            { from: 'mafft-outputs', to: 'iqtree-box', dashed: true },  // Special long dashed arrow
             { from: 'iqtree-optional', to: 'iqtree-box', dashed: true, toEdge: 'left' }  // Optional inputs to left edge of box
         ];
 
@@ -1276,6 +1393,102 @@
             }
         }
 
+        function drawLeftJoinPath(svg, startX, startY, endX, endY, isDashed = false) {
+            // Go LEFT horizontally to destination center X, then DOWN vertically to top center
+            const path = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+            path.setAttribute('stroke', '#444b6a');
+            path.setAttribute('stroke-width', '2.5');
+            path.setAttribute('stroke-linecap', 'round');
+            path.setAttribute('stroke-linejoin', 'round');
+            path.setAttribute('fill', 'none');
+            
+            if (isDashed) {
+                path.setAttribute('stroke-dasharray', '4,4');
+            }
+            
+            const points = [
+                [startX, startY],
+                [endX, startY],
+                [endX, endY]
+            ];
+            path.setAttribute('points', points.map(p => p.join(',')).join(' '));
+            svg.appendChild(path);
+            // Arrowhead pointing DOWN
+            drawArrowhead(svg, endX, endY - 10, endX, endY);
+        }
+
+        function drawRightJoinPath(svg, startX, startY, endX, endY, isDashed = false) {
+            // Go RIGHT horizontally to destination center X, then DOWN vertically to top center
+            const path = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+            path.setAttribute('stroke', '#444b6a');
+            path.setAttribute('stroke-width', '2.5');
+            path.setAttribute('stroke-linecap', 'round');
+            path.setAttribute('stroke-linejoin', 'round');
+            path.setAttribute('fill', 'none');
+            
+            if (isDashed) {
+                path.setAttribute('stroke-dasharray', '4,4');
+            }
+            
+            const points = [
+                [startX, startY],
+                [endX, startY],
+                [endX, endY]
+            ];
+            path.setAttribute('points', points.map(p => p.join(',')).join(' '));
+            svg.appendChild(path);
+            // Arrowhead pointing DOWN
+            drawArrowhead(svg, endX, endY - 10, endX, endY);
+        }
+
+        function drawLeftToLeftPath(svg, startX, startY, endX, endY, isDashed = false) {
+            // Go DOWN vertically to destination center height, then LEFT horizontally to left center
+            const path = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+            path.setAttribute('stroke', '#444b6a');
+            path.setAttribute('stroke-width', '2.5');
+            path.setAttribute('stroke-linecap', 'round');
+            path.setAttribute('stroke-linejoin', 'round');
+            path.setAttribute('fill', 'none');
+            
+            if (isDashed) {
+                path.setAttribute('stroke-dasharray', '4,4');
+            }
+            
+            const points = [
+                [startX, startY],
+                [startX, endY],
+                [endX, endY]
+            ];
+            path.setAttribute('points', points.map(p => p.join(',')).join(' '));
+            svg.appendChild(path);
+            // Arrowhead pointing RIGHT into box, centered on line
+            drawArrowhead(svg, endX - 10, endY, endX, endY);
+        }
+
+        function drawRightToRightPath(svg, startX, startY, endX, endY, isDashed = false) {
+            // Go DOWN vertically to destination center height, then RIGHT horizontally to right center
+            const path = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+            path.setAttribute('stroke', '#444b6a');
+            path.setAttribute('stroke-width', '2.5');
+            path.setAttribute('stroke-linecap', 'round');
+            path.setAttribute('stroke-linejoin', 'round');
+            path.setAttribute('fill', 'none');
+            
+            if (isDashed) {
+                path.setAttribute('stroke-dasharray', '4,4');
+            }
+            
+            const points = [
+                [startX, startY],
+                [startX, endY],
+                [endX, endY]
+            ];
+            path.setAttribute('points', points.map(p => p.join(',')).join(' '));
+            svg.appendChild(path);
+            // Arrowhead pointing LEFT into box, centered on line
+            drawArrowhead(svg, endX + 10, endY, endX, endY);
+        }
+
         function isSequentialConnection(fromId, toId) {
             const fromIndex = stageOrder.indexOf(fromId);
             const toIndex = stageOrder.indexOf(toId);
@@ -1317,29 +1530,66 @@
                 const startX = (fromRect.left - containerRect.left) + (fromRect.width / 2);
                 const startY = (fromRect.bottom - containerRect.top) + outputOffset;
                 
-                // Check if this is a sequential connection
+                // Check if this is a sequential connection (only if not forced to angular)
                 // Optional inputs are never sequential (they're always angular/dashed)
-                let isSequential = connection.from !== 'iqtree-optional' && isSequentialConnection(connection.from, connection.to);
+                let isSequential = !connection.forceAngular && connection.from !== 'iqtree-optional' && isSequentialConnection(connection.from, connection.to);
+                
+                // Draw stem extension above starting point if this arrow has siblings (just a line, no arrowhead)
+                if (connection.drawStemAbove) {
+                    const stemLength = 10;
+                    const stemLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                    stemLine.setAttribute('x1', startX);
+                    stemLine.setAttribute('y1', startY - stemLength);
+                    stemLine.setAttribute('x2', startX);
+                    stemLine.setAttribute('y2', startY);
+                    stemLine.setAttribute('stroke', '#444b6a');
+                    stemLine.setAttribute('stroke-width', '2.5');
+                    stemLine.setAttribute('stroke-linecap', 'round');
+                    if (connection.dashed) {
+                        stemLine.setAttribute('stroke-dasharray', '4,4');
+                    }
+                    svg.appendChild(stemLine);
+                }
                 
                 // For sequential arrows: endpoint is top center of destination box
-                // For angular arrows: endpoint is right edge center or left edge center of destination box
+                // For angular arrows: endpoint depends on routing type
                 let endX, endY;
-                if (isSequential) {
+                
+                // Handle special routing types
+                if (connection.routingType === 'left-join') {
+                    // Angle left to top center
                     endX = (toRect.left - containerRect.left) + (toRect.width / 2);
                     endY = (toRect.top - containerRect.top);
+                    drawLeftJoinPath(svg, startX, startY, endX, endY, connection.dashed);
+                } else if (connection.routingType === 'right-join') {
+                    // Angle right to top center
+                    endX = (toRect.left - containerRect.left) + (toRect.width / 2);
+                    endY = (toRect.top - containerRect.top);
+                    drawRightJoinPath(svg, startX, startY, endX, endY, connection.dashed);
+                } else if (connection.routingType === 'left-to-left') {
+                    // Vertical down then angle to left center
+                    endX = (toRect.left - containerRect.left);
+                    endY = (toRect.top - containerRect.top) + (toRect.height / 2);
+                    drawLeftToLeftPath(svg, startX, startY, endX, endY, connection.dashed);
+                } else if (connection.routingType === 'right-to-right') {
+                    // Vertical down then angle to right center
+                    endX = (toRect.right - containerRect.left);
+                    endY = (toRect.top - containerRect.top) + (toRect.height / 2);
+                    drawRightToRightPath(svg, startX, startY, endX, endY, connection.dashed);
+                } else if (isSequential) {
+                    endX = (toRect.left - containerRect.left) + (toRect.width / 2);
+                    endY = (toRect.top - containerRect.top);
+                    drawVerticalLine(svg, startX, startY, endX, endY, connection.dashed);
                 } else if (connection.toEdge === 'left') {
                     // Arrow pointing to left edge center
                     endX = (toRect.left - containerRect.left);
                     endY = (toRect.top - containerRect.top) + (toRect.height / 2);
+                    const fromOptional = connection.from === 'iqtree-optional';
+                    drawAngularPath(svg, startX, startY, endX, endY, connection.dashed, connection.toEdge, fromOptional);
                 } else {
                     // Arrow pointing to right edge center
                     endX = (toRect.right - containerRect.left);
                     endY = (toRect.top - containerRect.top) + (toRect.height / 2);
-                }
-
-                if (isSequential) {
-                    drawVerticalLine(svg, startX, startY, endX, endY, connection.dashed);
-                } else {
                     const fromOptional = connection.from === 'iqtree-optional';
                     drawAngularPath(svg, startX, startY, endX, endY, connection.dashed, connection.toEdge, fromOptional);
                 }
