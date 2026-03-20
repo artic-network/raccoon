@@ -82,6 +82,36 @@ class TestHarmonizeDate:
         result, issue = combine.harmonize_date("2024.01.15")
         assert result == "2024-01-15"
         assert issue is None
+    
+    def test_day_abbreviated_month_year_2digit(self):
+        """Test DD-MMM-YY format (e.g., 20-dec-25)."""
+        result, issue = combine.harmonize_date("20-dec-25")
+        assert result == "2025-12-20"
+        assert issue is None
+    
+    def test_day_abbreviated_month_year_4digit(self):
+        """Test DD-MMM-YYYY format (e.g., 20-Dec-2025)."""
+        result, issue = combine.harmonize_date("20-Dec-2025")
+        assert result == "2025-12-20"
+        assert issue is None
+    
+    def test_day_abbreviated_month_year_uppercase(self):
+        """Test DD-MMM-YY format with uppercase month."""
+        result, issue = combine.harmonize_date("15-JAN-24")
+        assert result == "2024-01-15"
+        assert issue is None
+    
+    def test_day_abbreviated_month_year_lowercase(self):
+        """Test DD-MMM-YY format with lowercase month."""
+        result, issue = combine.harmonize_date("15-jan-24")
+        assert result == "2024-01-15"
+        assert issue is None
+    
+    def test_day_abbreviated_month_year_mixed_case(self):
+        """Test DD-MMM-YY format with mixed case month."""
+        result, issue = combine.harmonize_date("07-Feb-23")
+        assert result == "2023-02-07"
+        assert issue is None
 
 
 class TestExtractDateFromText:
