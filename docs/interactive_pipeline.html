@@ -300,6 +300,12 @@
             border-left-color: #cec8eb;
         }
 
+        .output-item.thumbnail.treefile {
+            background: #5e6db1;
+            color: white;
+            border-left-color: #5e6db1;
+        }
+
         .output-item.thumbnail:hover {
             opacity: 0.85;
             transform: translateY(-2px);
@@ -548,6 +554,10 @@
 
         .legend-color.metadata {
             background: #cec8eb;
+        }
+
+        .legend-color.treefile {
+            background: #5e6db1;
         }
 
         .legend-dashed-line {
@@ -808,16 +818,16 @@
                     </div>
                     <div class="stage-outputs" id="iqtree-outputs">
                         <div class="stage-outputs-thumbnails">
-                            <div class="output-item thumbnail sequence" onclick="toggleOutput(event, 0)">alignment.treefile</div>
-                            <div class="output-item thumbnail metadata" onclick="toggleOutput(event, 1)">alignment.state</div>
+                            <div class="output-item thumbnail treefile" onclick="toggleOutput(event, 0)">output.treefile</div>
+                            <div class="output-item thumbnail metadata" onclick="toggleOutput(event, 1)">output.state</div>
                         </div>
                         <div class="stage-outputs-expanded">
-                            <div class="output-item expanded sequence">
-                                <strong>alignment.treefile</strong>
+                            <div class="output-item expanded treefile">
+                                <strong>output.treefile</strong>
                                 <p>Phylogenetic tree in Newick format</p>
                             </div>
                             <div class="output-item expanded metadata">
-                                <strong>alignment.state</strong>
+                                <strong>output.state</strong>
                                 <p>Ancestral state reconstruction (optional)</p>
                             </div>
                         </div>
@@ -867,6 +877,10 @@
                     <div class="legend-item">
                         <div class="legend-color metadata"></div>
                         <span>Metadata/Reports</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color treefile"></div>
+                        <span>Phylogenetic Tree</span>
                     </div>
                     <div class="legend-item">
                         <div class="legend-dashed-line"></div>
