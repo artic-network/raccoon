@@ -10,15 +10,26 @@ Raccoon is a lightweight toolkit for post-consensus genomic QC and phylogenetic 
 
 **Rationale:** Quality assessment and curation of genomic sequence data is essential for robust phylogenetic inference. By systematically evaluating sequence quality, alignment accuracy, and tree topology, raccoon helps researchers identify and address data issues that could compromise epidemiological or evolutionary conclusions before proceeding with downstream analysis.
 
+## Example reports
+
+Example reports are available in the [`docs/`](docs/) folder:
+
+- [Sequence QC report](docs/seq-qc_report.html)
+- [Alignment QC report](docs/aln-qc_report.html)
+- [Masking report](docs/mask_report.html)
+- [Phylogenetic QC report](docs/tree-qc_report.html)
+
+There is also an interactive pipeline with details on an example workflow for raccoon. See [raccoon-nf](#integrated-workflows) for an integrated workflow.
+- [Interactive pipeline](docs/interactive_pipeline.html)
+
 ---
 
 ## Contents
 
 - [Use cases](#use-cases)
-- [Integrated workflows](#integrated-workflows)
 - [Installation](#installation)
-- [Quickstart](#quickstart)
 - [Typical Workflow](#typical-workflow)
+- [Integrated workflows](#integrated-workflows)
 - [CLI usage](#cli-usage)
 - [Output Descriptions](#output-descriptions)
 - [Mask notes](#mask-notes)
@@ -50,8 +61,6 @@ Raccoon is a lightweight toolkit for post-consensus genomic QC and phylogenetic 
 - Flag convergent mutations and reversion events (when ancestral state reconstruction is available).
 - Identify sequences for removal prior to downstream temporal or evolutionary analyses.
 
-
-## Quickstart
 
 
 ## Typical Workflow
@@ -420,12 +429,11 @@ Mask output uses the following note values:
 
 The [examples](examples) folder includes a constructed alignment and GenBank reference suitable for quick testing:
 
-- [examples/constructed_alignment.fasta](examples/constructed_alignment.fasta)
-- [examples/constructed_reference.gb](examples/constructed_reference.gb)
+- [input_files.zip](examples/input_files.zip)
 
 ## Tutorial
 
-A comprehensive tutorial covering sequence metadata harmonisation, multiple sequence alignment, alignment curation, phylogenetic inference, and tree assessment is available at [artic.network/tutorials/raccoon.nf](https://artic.network/tutorials/raccoon-nf). The tutorial includes:
+A tutorial covering sequence metadata harmonisation, multiple sequence alignment, alignment curation, phylogenetic inference, and tree assessment is available at [artic.network/tutorials/raccoon.nf](https://artic.network/tutorials/raccoon-nf). The tutorial includes:
 
 - Step-by-step guidance on preparing sequence and metadata files.
 - Instructions for running raccoon-nf through the EPI2ME interface.
