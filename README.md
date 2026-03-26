@@ -14,13 +14,13 @@ Raccoon is a lightweight toolkit for post-consensus genomic QC and phylogenetic 
 
 Example reports are available in the [`docs/`](docs/) folder:
 
-- [Sequence QC report](docs/seq-qc_report.html)
-- [Alignment QC report](docs/aln-qc_report.html)
-- [Masking report](docs/mask_report.html)
-- [Phylogenetic QC report](docs/tree-qc_report.html)
+- [Sequence QC report](https://artic-network.github.io/raccoon/docs/seq-qc_report.html)
+- [Alignment QC report](https://artic-network.github.io/raccoon/docs/aln-qc_report.html)
+- [Masking report](https://artic-network.github.io/raccoon/docs/mask_report.html)
+- [Phylogenetic QC report](https://artic-network.github.io/raccoon/docs/tree-qc_report.html)
 
 There is also an interactive pipeline with details on an example workflow for raccoon. See [raccoon-nf](#integrated-workflows) for an integrated workflow.
-- [Interactive pipeline](docs/interactive_pipeline.html)
+- [Interactive pipeline](https://artic-network.github.io/raccoon/docs/interactive_pipeline.html)
 
 ---
 
