@@ -133,6 +133,7 @@
         var plots = document.querySelectorAll('.js-plotly-plot');
         plots.forEach(function (plot) {
           if (plot.dataset.resetAttached) return;
+          if (plot.dataset.disableBaseReset === 'true') return;
           plot.dataset.resetAttached = 'true';
 
           var wrap = plot.parentElement;

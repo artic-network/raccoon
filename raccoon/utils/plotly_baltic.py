@@ -313,15 +313,6 @@ def build_tree_plot(
         name="Branches",
     ))
     fig.add_trace(go.Scatter(
-        x=tip_x,
-        y=tip_y,
-        mode="markers",
-        marker=dict(size=8, color=_colors_for(default_key)),
-        hovertemplate="%{text}<extra></extra>",
-        text=tip_hover,
-        name="Tips",
-    ))
-    fig.add_trace(go.Scatter(
         x=node_x,
         y=node_y,
         mode="markers",
@@ -329,6 +320,15 @@ def build_tree_plot(
         hovertemplate="%{text}<extra></extra>",
         text=node_hover,
         name="Nodes",
+    ))
+    fig.add_trace(go.Scatter(
+        x=tip_x,
+        y=tip_y,
+        mode="markers",
+        marker=dict(size=8, color=_colors_for(default_key)),
+        hovertemplate="%{text}<extra></extra>",
+        text=tip_hover,
+        name="Tips",
     ))
     if tip_x:
         tip_span = max(tip_x) - min(tip_x)
@@ -356,7 +356,7 @@ def build_tree_plot(
         hoverinfo="skip",
         showlegend=False,
         name="Tip labels",
-        visible=True,
+        visible=False,
     ))
     fig.add_trace(go.Scatter(
         x=branch_hover_x,
@@ -369,133 +369,45 @@ def build_tree_plot(
         name="Branch mutations",
     ))
 
-    scale_values = [round(1.0 + (i * 0.01), 2) for i in range(101)]
     y_min = min(tip_y) if tip_y else 0
     y_max = max(tip_y) if tip_y else 0
     y_span = y_max - y_min
-    y_pad = max(1.0, y_span * 0.03) if tip_y else 1.0
-    y_min_pad = y_min - y_pad
-    y_max_pad = y_max + y_pad
+    # Keep top whitespace tiny and stable for very large trees so expanding height
+    # doesn't create a large visual gap above the highest tip/branch.
+    if tip_y:
+        y_top_pad = 0.5
+        y_bottom_pad = max(1.0, min(8.0, y_span * 0.01))
+    else:
+        y_top_pad = 1.0
+        y_bottom_pad = 1.0
+    y_min_pad = y_min - y_top_pad
+    y_max_pad = y_max + y_bottom_pad
     base_height = max(500, int((y_max_pad if tip_y else 0) * 15)) if tip_y else 500
     y_range_default = (y_min_pad, y_max_pad)
-    height_default = base_height
-
-    slider_steps = []
-    for scale in scale_values:
-        slider_steps.append({
-            "label": "",
-            "method": "relayout",
-            "args": [{
-                "height": int(base_height * scale),
-                "yaxis.range": list(y_range_default),
-            }],
-        })
-
-    color_buttons = []
-    for key in color_keys:
-        color_buttons.append({
-            "label": key,
-            "method": "restyle",
-            "args": [{"marker.color": [_colors_for(key)]}, [1]],
-        })
+    full_height = base_height
+    initial_height = min(full_height, 700)
+    color_arrays = {key: _colors_for(key) for key in color_keys}
 
     fig.update_layout(
         xaxis_title="Substitutions per site",
         showlegend=False,
-        height=height_default,
+        height=initial_height,
         xaxis=dict(range=list(x_range_default)),
         yaxis=dict(range=list(y_range_default) if tip_y else None),
-        sliders=[{
-            "active": 0,
-            "pad": {"t": 0, "b": 0},
-            "ticklen": 0,
-            "tickwidth": 0,
-            "len": 0.28,
-            "x": 0.62,
-            "y": 1.12,
-            "xanchor": "left",
-            "yanchor": "top",
-            "steps": slider_steps,
-        }],
-        updatemenus=[{
-            "buttons": color_buttons,
-            "direction": "down",
-            "showactive": True,
-            "x": 0.12,
-            "y": 1.12,
-            "xanchor": "left",
-            "yanchor": "top",
-        }, {
-            "buttons": [
-                {"label": "On", "method": "restyle", "args": [{"visible": True}, [3]]},
-                {"label": "Off", "method": "restyle", "args": [{"visible": False}, [3]]},
-            ],
-            "direction": "down",
-            "showactive": False,
-            "x": 0.36,
-            "y": 1.12,
-            "xanchor": "left",
-            "yanchor": "top",
-        }, {
-            "buttons": [
-                {
-                    "label": "Reset view",
-                    "method": "relayout",
-                    "args": [{
-                        "xaxis.range[0]": x_range_default[0],
-                        "xaxis.range[1]": x_range_default[1],
-                        "yaxis.autorange": False,
-                        "yaxis.range[0]": y_range_default[0],
-                        "yaxis.range[1]": y_range_default[1],
-                        "height": height_default,
-                        "sliders[0].active": 0,
-                    }],
-                }
-            ],
-            "type": "buttons",
-            "direction": "right",
-            "showactive": False,
-            "x": 0.98,
-            "y": 1.12,
-            "xanchor": "right",
-            "yanchor": "top",
-        }],
-        annotations=[
-            {
-                "text": "Colour by",
-                "xref": "paper",
-                "yref": "paper",
-                "x": 0.02,
-                "y": 1.12,
-                "showarrow": False,
-                "xanchor": "left",
-                "yanchor": "top",
-                "font": {"size": 12, "color": "#111"},
-            },
-            {
-                "text": "Tip labels",
-                "xref": "paper",
-                "yref": "paper",
-                "x": 0.28,
-                "y": 1.12,
-                "showarrow": False,
-                "xanchor": "left",
-                "yanchor": "top",
-                "font": {"size": 12, "color": "#111"},
-            },
-            {
-                "text": "Expand tree",
-                "xref": "paper",
-                "yref": "paper",
-                "x": 0.56,
-                "y": 1.12,
-                "showarrow": False,
-                "xanchor": "left",
-                "yanchor": "top",
-                "font": {"size": 12, "color": "#111"},
-            },
-        ],
-        margin=dict(l=60, r=20, t=60, b=40),
+        meta={
+            "tree_controls": {
+                "color_keys": color_keys,
+                "color_arrays": color_arrays,
+                "default_color_key": default_key,
+                "tip_trace_index": 2,
+                "tip_labels_trace_index": 3,
+                "x_range": list(x_range_default),
+                "y_range": list(y_range_default),
+                "initial_height": initial_height,
+                "full_height": full_height,
+            }
+        },
+        margin=dict(l=60, r=20, t=40, b=40),
     )
     _apply_plot_style(fig)
     fig.update_yaxes(showticklabels=False, ticks="", title=None, showline=False)

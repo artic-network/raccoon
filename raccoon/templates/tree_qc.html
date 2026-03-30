@@ -1,5 +1,32 @@
 {% extends "base.html" %}
 {% block content %}
+  <style>
+    .tree-controls {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px 16px;
+      margin: 10px 0 12px;
+      padding: 10px 12px;
+      border: 1px solid #e2dbea;
+      border-radius: 8px;
+      background: #f6f3f9;
+    }
+    .tree-control-group {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .tree-control-group label {
+      font-weight: 600;
+      color: #444;
+      font-size: 0.9rem;
+    }
+    .tree-control-group select,
+    .tree-control-group input[type="range"] {
+      max-width: 280px;
+    }
+  </style>
   <div class="section">
     <div class="toc card">
       <h3>Table of contents</h3>
@@ -28,6 +55,7 @@
         <p>
         Further explore this tree in <a href="https://artic-network.github.io/peartree/" target="_blank" rel="noopener noreferrer">PearTree</a>.
         </p>
+        <div id="tree-controls" class="tree-controls"></div>
         <div id="tree-plot-container">
           {{ tree_plot_html | safe }}
         </div>
@@ -38,20 +66,174 @@
     {% if tree_plot_html %}
       <script>
         (function () {
+          function createElement(tag, attrs, text) {
+            var el = document.createElement(tag);
+            if (attrs) {
+              Object.keys(attrs).forEach(function (key) {
+                el.setAttribute(key, attrs[key]);
+              });
+            }
+            if (text !== undefined && text !== null) {
+              el.textContent = text;
+            }
+            return el;
+          }
+
+          function clamp(value, min, max) {
+            return Math.max(min, Math.min(max, value));
+          }
+
           var container = document.getElementById('tree-plot-container');
+          var controlsHost = document.getElementById('tree-controls');
           if (!container || !window.Plotly) return;
           var plot = container.querySelector('.js-plotly-plot');
           if (!plot) return;
+          plot.dataset.disableBaseReset = 'true';
+
+          var meta = (plot.layout && plot.layout.meta && plot.layout.meta.tree_controls)
+            ? plot.layout.meta.tree_controls
+            : null;
 
           function syncHeight() {
-            var height = (plot.layout && plot.layout.height) ? plot.layout.height : plot.clientHeight;
+            var layoutHeight = (plot.layout && plot.layout.height) ? Number(plot.layout.height) : 0;
+            var fullLayoutHeight = (plot._fullLayout && plot._fullLayout.height) ? Number(plot._fullLayout.height) : 0;
+            var domHeight = plot.getBoundingClientRect ? Math.round(plot.getBoundingClientRect().height) : 0;
+            var height = Math.max(layoutHeight || 0, fullLayoutHeight || 0, domHeight || 0);
             if (height) {
               container.style.height = height + 'px';
             }
           }
 
+          function buildExternalControls() {
+            if (!controlsHost || !meta) return;
+            controlsHost.innerHTML = '';
+
+            var colorGroup = createElement('div', { class: 'tree-control-group' });
+            var colorLabel = createElement('label', { for: 'tree-colour-by' }, 'Colour by');
+            var colorSelect = createElement('select', { id: 'tree-colour-by' });
+            var colorKeys = Array.isArray(meta.color_keys) ? meta.color_keys : [];
+            colorKeys.forEach(function (key) {
+              var option = createElement('option', { value: key }, key);
+              colorSelect.appendChild(option);
+            });
+            if (meta.default_color_key) {
+              colorSelect.value = meta.default_color_key;
+            }
+            colorSelect.disabled = colorKeys.length === 0;
+            colorSelect.addEventListener('change', function () {
+              var selected = colorSelect.value;
+              var colors = meta.color_arrays ? meta.color_arrays[selected] : null;
+              if (colors && colors.length) {
+                window.Plotly.restyle(plot, { 'marker.color': [colors] }, [meta.tip_trace_index || 1]);
+              }
+            });
+            colorGroup.appendChild(colorLabel);
+            colorGroup.appendChild(colorSelect);
+
+            var labelsGroup = createElement('div', { class: 'tree-control-group' });
+            var labelsCheckbox = createElement('input', { id: 'tree-tip-labels', type: 'checkbox' });
+            var labelsLabel = createElement('label', { for: 'tree-tip-labels' }, 'Tip labels');
+            labelsCheckbox.checked = false;
+            labelsCheckbox.addEventListener('change', function () {
+              window.Plotly.restyle(
+                plot,
+                { visible: labelsCheckbox.checked },
+                [meta.tip_labels_trace_index || 3]
+              );
+            });
+            labelsGroup.appendChild(labelsCheckbox);
+            labelsGroup.appendChild(labelsLabel);
+
+            var heightGroup = createElement('div', { class: 'tree-control-group' });
+            var heightLabel = createElement('label', { for: 'tree-expand-slider' }, 'Expand tree');
+            var heightSlider = createElement('input', {
+              id: 'tree-expand-slider',
+              type: 'range',
+              min: '0',
+              max: '100',
+              value: '0',
+            });
+            heightSlider.addEventListener('input', function () {
+              var initialHeight = Number(meta.initial_height || plot.layout.height || 500);
+              var fullHeight = Number(meta.full_height || initialHeight);
+              var ratio = Number(heightSlider.value) / 100;
+              var height = Math.round(initialHeight + ((fullHeight - initialHeight) * ratio));
+              var update = { height: height };
+              if (Array.isArray(meta.y_range) && meta.y_range.length === 2) {
+                update['yaxis.autorange'] = false;
+                update['yaxis.range[0]'] = meta.y_range[0];
+                update['yaxis.range[1]'] = meta.y_range[1];
+              }
+              container.style.height = height + 'px';
+              window.Plotly.relayout(plot, update);
+            });
+            heightGroup.appendChild(heightLabel);
+            heightGroup.appendChild(heightSlider);
+
+            var resetGroup = createElement('div', { class: 'tree-control-group' });
+            var resetButton = createElement('button', { type: 'button', class: 'expand-button' }, 'Reset view');
+            resetButton.addEventListener('click', function () {
+              var relayout = {
+                height: Number(meta.initial_height || plot.layout.height || 500),
+              };
+              if (Array.isArray(meta.x_range) && meta.x_range.length === 2) {
+                relayout['xaxis.autorange'] = false;
+                relayout['xaxis.range[0]'] = meta.x_range[0];
+                relayout['xaxis.range[1]'] = meta.x_range[1];
+              } else {
+                relayout['xaxis.autorange'] = true;
+              }
+              if (Array.isArray(meta.y_range) && meta.y_range.length === 2) {
+                relayout['yaxis.autorange'] = false;
+                relayout['yaxis.range[0]'] = meta.y_range[0];
+                relayout['yaxis.range[1]'] = meta.y_range[1];
+              } else {
+                relayout['yaxis.autorange'] = true;
+              }
+              heightSlider.value = '0';
+              labelsCheckbox.checked = false;
+              window.Plotly.restyle(plot, { visible: false }, [meta.tip_labels_trace_index || 3]);
+              if (meta.default_color_key && meta.color_arrays && meta.color_arrays[meta.default_color_key]) {
+                colorSelect.value = meta.default_color_key;
+                window.Plotly.restyle(
+                  plot,
+                  { 'marker.color': [meta.color_arrays[meta.default_color_key]] },
+                  [meta.tip_trace_index || 1]
+                );
+              }
+              container.style.height = String(relayout.height) + 'px';
+              window.Plotly.relayout(plot, relayout);
+            });
+            resetGroup.appendChild(resetButton);
+
+            controlsHost.appendChild(colorGroup);
+            controlsHost.appendChild(labelsGroup);
+            controlsHost.appendChild(heightGroup);
+            controlsHost.appendChild(resetGroup);
+
+            if (meta.default_color_key && meta.color_arrays && meta.color_arrays[meta.default_color_key]) {
+              window.Plotly.restyle(
+                plot,
+                { 'marker.color': [meta.color_arrays[meta.default_color_key]] },
+                [meta.tip_trace_index || 1]
+              );
+            }
+            window.Plotly.restyle(plot, { visible: false }, [meta.tip_labels_trace_index || 3]);
+            var initialHeight = clamp(Number(meta.initial_height || 500), 300, Number(meta.full_height || 500));
+            var initRelayout = { height: initialHeight };
+            if (Array.isArray(meta.y_range) && meta.y_range.length === 2) {
+              initRelayout['yaxis.autorange'] = false;
+              initRelayout['yaxis.range[0]'] = meta.y_range[0];
+              initRelayout['yaxis.range[1]'] = meta.y_range[1];
+            }
+            container.style.height = initialHeight + 'px';
+            window.Plotly.relayout(plot, initRelayout);
+          }
+
           plot.on('plotly_afterplot', syncHeight);
           plot.on('plotly_animated', syncHeight);
+          plot.on('plotly_relayout', syncHeight);
+          buildExternalControls();
           syncHeight();
         })();
       </script>
