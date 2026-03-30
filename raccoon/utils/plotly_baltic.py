@@ -325,6 +325,15 @@ def build_tree_plot(
         x=tip_x,
         y=tip_y,
         mode="markers",
+        marker=dict(size=10, color="#111111"),
+        hoverinfo="skip",
+        showlegend=False,
+        name="Tip underlay",
+    ))
+    fig.add_trace(go.Scatter(
+        x=tip_x,
+        y=tip_y,
+        mode="markers",
         marker=dict(size=8, color=_colors_for(default_key)),
         hovertemplate="%{text}<extra></extra>",
         text=tip_hover,
@@ -375,11 +384,11 @@ def build_tree_plot(
     # Keep top whitespace tiny and stable for very large trees so expanding height
     # doesn't create a large visual gap above the highest tip/branch.
     if tip_y:
-        y_top_pad = 0.5
-        y_bottom_pad = max(1.0, min(8.0, y_span * 0.01))
+        y_top_pad = 8
+        y_bottom_pad = max(1.2, min(6.0, y_span * 0.008))
     else:
-        y_top_pad = 1.0
-        y_bottom_pad = 1.0
+        y_top_pad = 2.0
+        y_bottom_pad = 2.0
     y_min_pad = y_min - y_top_pad
     y_max_pad = y_max + y_bottom_pad
     base_height = max(500, int((y_max_pad if tip_y else 0) * 15)) if tip_y else 500
@@ -399,8 +408,8 @@ def build_tree_plot(
                 "color_keys": color_keys,
                 "color_arrays": color_arrays,
                 "default_color_key": default_key,
-                "tip_trace_index": 2,
-                "tip_labels_trace_index": 3,
+                "tip_trace_index": 3,
+                "tip_labels_trace_index": 4,
                 "x_range": list(x_range_default),
                 "y_range": list(y_range_default),
                 "initial_height": initial_height,
