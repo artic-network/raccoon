@@ -150,6 +150,7 @@ def harmonize_date(date_str: str) -> Tuple[Optional[str], Optional[str]]:
         '%m-%d-%Y',      # 01-15-2024
         '%d-%b-%Y',      # 15-Jan-2024
         '%d-%b-%y',      # 15-Jan-24 or 20-dec-25
+        '%b-%y',         # Jan-24 or Dec-25
         '%Y.%m.%d',      # 2024.01.15
         '%d.%m.%Y',      # 15.01.2024
         '%B %d, %Y',     # January 15, 2024
