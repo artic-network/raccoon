@@ -144,8 +144,8 @@ def detect_tree_format(treefile, tree_format="auto"):
 def load_tree(treefile, tree_format="auto"):
     fmt = detect_tree_format(treefile, tree_format)
     if fmt == "nexus":
-        return bt.loadNexus(treefile, absoluteTime=False)
-    return bt.loadNewick(treefile, absoluteTime=False)
+        return bt.load_nexus(treefile, treeType='divergence')
+    return bt.load_newick(treefile, treeType='divergence')
 
 
 def ensure_node_label(node):

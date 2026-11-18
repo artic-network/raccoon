@@ -50,7 +50,7 @@ def make_reversion_tree_figure(outfile: str, branch_snps, branch_reversions, wil
 
     branch_snps_dict = _read_branch_snps(branch_snps)
 
-    my_tree = bt.loadNewick(treefile, absoluteTime=False)
+    my_tree = bt.load_newick(treefile, treeType='divergence')
 
     # heuristic sizing
     r2t = 200000 * my_tree.treeHeight
@@ -155,7 +155,7 @@ def make_convergence_tree_figure(outfile: str, branch_snps, branch_convergence, 
 
     branch_snps_dict = _read_branch_snps(branch_snps)
 
-    my_tree = bt.loadNewick(treefile, absoluteTime=False)
+    my_tree = bt.load_newick(treefile, treeType='divergence')
 
     r2t = 200000 * my_tree.treeHeight
     if w is None:
@@ -248,7 +248,7 @@ def make_reconstruction_tree_figure_w_labels(outfile: str, branch_snps, treefile
 
     branch_snps_dict = _read_branch_snps(branch_snps)
 
-    my_tree = bt.loadNewick(treefile, absoluteTime=False)
+    my_tree = bt.load_newick(treefile, treeType='divergence')
 
     if w is None:
         r2t = 200000 * my_tree.treeHeight
