@@ -20,7 +20,7 @@ from plotly.offline import plot
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from .reconstruction_functions import load_tree, ensure_node_label
-from .plotly_baltic import build_tree_plot
+from .tree_rendering import build_tree_plot
 from . import constants as rc
 
 

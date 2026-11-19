@@ -42,6 +42,12 @@ class FakeTree:
 
 
 class FakeBalticModule:
+    def load_newick(self, treefile, treeType='divergence'):
+        return FakeTree()
+
+    def load_nexus(self, treefile, treeType='divergence'):
+        return FakeTree()
+    
     def loadNewick(self, treefile, absoluteTime=False):
         return FakeTree()
 
